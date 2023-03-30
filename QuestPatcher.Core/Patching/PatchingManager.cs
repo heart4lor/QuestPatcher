@@ -148,13 +148,13 @@ namespace QuestPatcher.Core.Patching
             {
                 throw new GameNotExistException("Game does not exist!");
             }
-            string permissionsString = packageDump.Substring(beginPermissionsIdx, endPermissionsIdx - beginPermissionsIdx);
+
+            string? permissionsString = beginPermissionsIdx == -1 || endPermissionsIdx == -1 ? null : packageDump.Substring(beginPermissionsIdx, endPermissionsIdx - beginPermissionsIdx);
 
             Log.Information("Attempting to check modding status from package dump");
             // If the APK's permissions include the modded tag permission, then we know the APK is modded
             // This avoids having to pull the APK from the quest to check it if it's modded
-            if(permissionsString.Split("\n").Skip(1).Select(perm => perm.Trim()).Contains(TagPermission)||
-                permissionsString.Split("\n").Skip(1).Select(perm => perm.Trim()).Contains("questpatcher.mbversion.modded"))
+            if((permissionsString?.Split("\n").Skip(1).Select(perm => perm.Trim()).Contains(TagPermission) ?? false) || (permissionsString?.Split("\n").Skip(1).Select(perm => perm.Trim()).Contains("questpatcher.mbversion.modded") ?? false))
             {
                 Log.Information("Modded permission found in dumpsys output.");
                 string cpuAbi = GetPackageDumpValue(packageDump, "primaryCpuAbi");
