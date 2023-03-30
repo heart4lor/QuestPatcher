@@ -302,6 +302,7 @@ namespace QuestPatcher.Core.Patching
             Log.Information("Unstripped libunity found. Downloading . . .");
             using TempFile tempDownloadPath = _specialFolders.GetTempFile();
             {
+                /*
                 string str = await client.DownloadStringTaskAsync("https://ganbei-hot-update-1258625969.file.myqcloud.com/questpatcher_mirror/libunity/mirrored_files.txt");
                 string source;
                 if(str.IndexOf($"{correctVersion}.so") >= 0)
@@ -310,6 +311,8 @@ namespace QuestPatcher.Core.Patching
                     Log.Information("[ MMirror ] Using MicroBlock's mirror");
                 }
                 else source = "https://beatmods.wgzeyu.com/github/QuestUnstrippedUnity/versions/";
+                */
+                string source = "https://beatmods.wgzeyu.com/github/QuestUnstrippedUnity/versions/";
                 
                 await _filesDownloader.DownloadUrl(
                         $"{source}{correctVersion}.so",
