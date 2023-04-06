@@ -126,7 +126,6 @@ namespace QuestPatcher.Core
 
             MigrateOldFiles();
             CoreModUtils.Instance.PackageId = Config.AppId;
-            await CoreModUtils.Instance.RefreshCoreMods();
             await Task.WhenAll(CoreModUtils.Instance.RefreshCoreMods(), DownloadMirrorUtil.Instance.Refresh());
             await PatchingManager.LoadInstalledApp();
             await ModManager.LoadModsForCurrentApp();

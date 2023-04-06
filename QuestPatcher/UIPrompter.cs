@@ -7,6 +7,7 @@ using QuestPatcher.Views;
 using System;
 using System.Diagnostics;
 using System.Net;
+using System.Net.Http;
 using System.Threading.Tasks;
 using QuestPatcher.Utils;
 
@@ -35,13 +36,22 @@ namespace QuestPatcher
         {
             try
             {
-                WebClient client = new();
-                client.Headers.Add("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/97.0.4692.71 Safari/537.36");
-                client.Headers.Add("accept", "application/json");
-                var str = await client.DownloadStringTaskAsync("https://beatmods.wgzeyu.com/githubapi/MicroCBer/QuestPatcher/latest");
-                JObject upd = JObject.Parse(str);
-       
-                var newest = upd["tag_name"].ToString();
+                JObject? res = null;
+                using HttpClient client = new();
+                client.DefaultRequestHeaders.Add("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/97.0.4692.71 Safari/537.36");
+                client.DefaultRequestHeaders.Add("accept", "application/json");
+                try
+                {
+                    res = JObject.Parse(await client.GetStringAsync(@"https://beatmods.wgzeyu.com/githubapi/MicroCBer/QuestPatcher/latest"));
+                }
+                catch (Exception e)
+                {
+                    res = JObject.Parse(await client.GetStringAsync(@"https://api.github.com/repos/MicroCBer/QuestPatcher/releases/latest"));
+                }
+                
+                var newest = res["tag_name"]?.ToString();
+                if (newest == null) throw new Exception("Failed to check update.");
+                
                 if (newest != VersionUtil.QuestPatcherVersion.ToString())
                 {
                     DialogBuilder builder = new()
@@ -81,12 +91,12 @@ namespace QuestPatcher
                 }
                 return true;
             }
-            catch (WebException ex)
+            catch (Exception ex)
             {
                 DialogBuilder builder = new()
                 {
-                    Title = "检查更新失败"+ex.ToString(),
-                    Text = $"请手动检查更新",
+                    Title = "检查更新失败"+ex,
+                    Text = "请手动检查更新",
                     HideOkButton = true
                 };
                 builder.WithButtons(

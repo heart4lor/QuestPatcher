@@ -19,7 +19,7 @@ public static class Util
         }
         catch (Exception e)
         {
-            Log.Error(e, "Failed to open webpage: {}", url);
+            Log.Error(e, "Failed to open webpage: {Url}", url);
         }
     }
 }

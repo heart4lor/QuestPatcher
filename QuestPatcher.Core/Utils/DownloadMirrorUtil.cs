@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading;
@@ -10,73 +11,87 @@ namespace QuestPatcher.Core.Utils;
 
 public class DownloadMirrorUtil
 {
-    public static readonly DownloadMirrorUtil Instance = new ();
-    
+    public static readonly DownloadMirrorUtil Instance = new();
+
     private const string MirrorUrl = @"https://bs.wgzeyu.com/localization/mods.json";
 
     private long _lastRefreshTime = 0;
-    
+
     private readonly HttpClient _client = new();
-    
-    private readonly Dictionary<string, string> _mirrorUrls = new ();
-    private string _coreModPackageId = "";
+
+    private Dictionary<string, string> _mirrorUrls = new();
 
     private CancellationTokenSource? _cancellationTokenSource;
-    
+
+    private readonly Dictionary<string, string> _staticMirrors = new()
+    {
+        // TODO Add Static ones if needed
+    };
+
+    public IDictionary<string, string> StaticMirrors => _staticMirrors;
+
     private DownloadMirrorUtil()
     {
-        
     }
 
     public async Task Refresh()
     {
         Log.Information("Refreshing download mirror URL ");
-        
+
         // Cancel a previous refresh attempt in case it is not finished
         _cancellationTokenSource?.Cancel();
         _cancellationTokenSource?.Dispose();
         _cancellationTokenSource = new CancellationTokenSource();
-        
+        var token = _cancellationTokenSource.Token;
         try
         {
-            using var res = await _client.GetAsync(MirrorUrl, _cancellationTokenSource.Token);
-            res.EnsureSuccessStatusCode();
+            var res = await _client.GetStringAsync(MirrorUrl, token);
 
-            var jObject = JObject.Parse(await res.Content.ReadAsStringAsync());
-            _mirrorUrls.Clear();
+            var jObject = JObject.Parse(res);
+            token.ThrowIfCancellationRequested();
 
-            foreach (var pair in jObject)
+            var mirrorUrls = new Dictionary<string, string>(_staticMirrors);
+
+            foreach(var pair in jObject)
             {
                 var mirror = pair.Value?["mirrorUrl"]?.ToString();
-                if (mirror != null)
+                if(mirror != null)
                 {
-                    _mirrorUrls.Add(pair.Key, mirror);
+                    mirrorUrls[pair.Key] = mirror;
                 }
             }
 
+            token.ThrowIfCancellationRequested();
+
+            _mirrorUrls = mirrorUrls;
             _lastRefreshTime = DateTimeOffset.Now.ToUnixTimeSeconds();
+        }
+        catch(OperationCanceledException)
+        {
+            Log.Warning("Refresh mirror url cancelled");
         }
         catch(Exception e)
         {
-            Log.Error(e, "Cannot fetch mirror download url");
+            Log.Error(e, "Cannot fetch mirror url");
             // we don't want to overwrite what we previously have 
         }
     }
-    
+
     public async Task<string> GetMirrorUrl(string original)
     {
-        if (DateTimeOffset.Now.ToUnixTimeSeconds() - _lastRefreshTime > 300)
+        if(DateTimeOffset.Now.ToUnixTimeSeconds() - _lastRefreshTime > 300)
         {
+            Log.Information("Mirror Url cache too old! Refreshing");
             await Refresh();
         }
 
-        if (_mirrorUrls.ContainsKey(original))
+        if(_mirrorUrls.TryGetValue(original, out var mirror))
         {
-            Log.Information($"Mirror Url found: {_mirrorUrls[original]}");
-            return _mirrorUrls[original];
+            Log.Debug("Mirror Url found: {Mirror}", mirror);
+            return mirror;
         }
-        Log.Warning($"Mirror Url not found for {original}");
+
+        Log.Warning("Mirror Url not found for {Original}", original);
         return original;
     }
-
 }
