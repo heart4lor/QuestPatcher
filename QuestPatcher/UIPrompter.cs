@@ -7,8 +7,10 @@ using QuestPatcher.Views;
 using System;
 using System.Diagnostics;
 using System.Net;
+using System.Net.Http;
 using System.Threading.Tasks;
 using QuestPatcher.Utils;
+using Version = SemanticVersioning.Version;
 
 namespace QuestPatcher
 {
@@ -35,14 +37,25 @@ namespace QuestPatcher
         {
             try
             {
-                WebClient client = new();
-                client.Headers.Add("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/97.0.4692.71 Safari/537.36");
-                client.Headers.Add("accept", "application/json");
-                var str = await client.DownloadStringTaskAsync("https://beatmods.wgzeyu.com/githubapi/MicroCBer/QuestPatcher/latest");
-                JObject upd = JObject.Parse(str);
-       
-                var newest = upd["tag_name"].ToString();
-                if (newest != VersionUtil.QuestPatcherVersion.ToString())
+                JObject? res = null;
+                using HttpClient client = new();
+                client.DefaultRequestHeaders.Add("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/97.0.4692.71 Safari/537.36");
+                client.DefaultRequestHeaders.Add("accept", "application/json");
+                try
+                {
+                    res = JObject.Parse(await client.GetStringAsync(@"https://beatmods.wgzeyu.com/githubapi/MicroCBer/QuestPatcher/latest"));
+                }
+                catch (Exception e)
+                {
+                    res = JObject.Parse(await client.GetStringAsync(@"https://api.github.com/repos/MicroCBer/QuestPatcher/releases/latest"));
+                }
+                
+                var newest = res["tag_name"]?.ToString();
+                if (newest == null) throw new Exception("Failed to check update.");
+
+                var isLatest = Version.TryParse(newest, out var latest) && latest == VersionUtil.QuestPatcherVersion;
+                
+                if (!isLatest)
                 {
                     DialogBuilder builder = new()
                     {
@@ -50,7 +63,7 @@ namespace QuestPatcher
                         Text = $"**不更新软件，可能会遇到未知问题，强烈建议更新至最新版**\n" +
                         $"同时，非最新版本将不受支持且不保证没有安全问题\n\n" +
                         $"您的版本 - v{VersionUtil.QuestPatcherVersion}\n" +
-                        $"最新版本 - v{newest}",
+                        $"最新版本 - v{latest?.ToString() ?? newest}",
                         HideOkButton = true,
                         HideCancelButton = true
                     };
@@ -81,12 +94,12 @@ namespace QuestPatcher
                 }
                 return true;
             }
-            catch (WebException ex)
+            catch (Exception ex)
             {
                 DialogBuilder builder = new()
                 {
-                    Title = "检查更新失败"+ex.ToString(),
-                    Text = $"请手动检查更新",
+                    Title = "检查更新失败"+ex,
+                    Text = "请手动检查更新",
                     HideOkButton = true
                 };
                 builder.WithButtons(

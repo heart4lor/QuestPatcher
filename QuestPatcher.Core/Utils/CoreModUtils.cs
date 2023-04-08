@@ -14,7 +14,8 @@ public class CoreModUtils
 {
     public static readonly CoreModUtils Instance = new CoreModUtils();
     
-    private const string BeatSaberCoreModsUrl = @"https://beatmods.wgzeyu.com/github/BMBFresources/com.beatgames.beatsaber/core-mods.json";
+    private const string BeatSaberCoreModsUrl = @"https://github.com/qe201020335/BMBFResourceMirror/raw/master/com.beatgames.beatsaber/core-mods.json";
+    private const string BeatSaberCoreModsCnUrl = @"https://beatmods.wgzeyu.com/github/BMBFresources/com.beatgames.beatsaber/core-mods.json";
     public const string BeatSaberPackageID = @"com.beatgames.beatsaber";
     private readonly HttpClient _client = new();
     private CoreModUtils()
@@ -56,14 +57,21 @@ public class CoreModUtils
         {
             try
             {
-                using var res = await _client.GetAsync(BeatSaberCoreModsUrl, _cancellationTokenSource.Token);
-                res.EnsureSuccessStatusCode();
-                _coreMods = JObject.Parse(await res.Content.ReadAsStringAsync());
+                var res = await _client.GetStringAsync(BeatSaberCoreModsUrl, _cancellationTokenSource.Token);
+                _coreMods = JObject.Parse(res);
             }
             catch(Exception e)
             {
-                Log.Error(e, "Cannot fetch core mods");
-                // we don't want to overwrite what we previously have 
+                try
+                {
+                    var res = await _client.GetStringAsync(BeatSaberCoreModsCnUrl, _cancellationTokenSource.Token);
+                    _coreMods = JObject.Parse(res);
+                }
+                catch(Exception exception)
+                {
+                    Log.Error(exception, "Cannot fetch core mods");
+                    // we don't want to overwrite what we previously have 
+                }
             }
         }
         else
@@ -82,7 +90,7 @@ public class CoreModUtils
         }
         catch(Exception e)
         {
-            Log.Error(e, "Unexpected Error while finding core mods for {}",packageVersion);
+            Log.Error(e, "Unexpected Error while finding core mods for {Version}",packageVersion);
             return new List<JToken>();
         }
     }

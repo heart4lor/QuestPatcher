@@ -108,7 +108,8 @@ namespace QuestPatcher.Core
         /// <summary>
         /// Index for file downloads. Used by default, but if it fails QP will fallback to resources
         /// </summary>
-        private const string DownloadsUrl = "https://beatmods.wgzeyu.com/github/MicroCBer/QuestPatcher/Resources/file-downloads.json";
+        private const string DownloadsUrl = "https://raw.githubusercontent.com/MicroCBer/QuestPatcher/main/QuestPatcher.Core/Resources/file-downloads.json";
+        private const string DownloadsUrlCn = "https://beatmods.wgzeyu.com/github/MicroCBer/QuestPatcher/Resources/file-downloads.json";
 
         private readonly Dictionary<ExternalFileType, FileInfo> _fileTypes = new()
         {
@@ -326,10 +327,20 @@ namespace QuestPatcher.Core
         /// </summary>
         /// <returns>The available download sets</returns>
         /// <exception cref="NullReferenceException">If no download sets were in the pulled file, i.e. it was empty</exception>
+        /// <exception cref="WebException">If both url failed</exception>
         private async Task<List<DownloadSet>> LoadDownloadSetsFromWeb()
         {
-            Log.Debug($"Getting download URLs from {DownloadsUrl} . . .");
-            string data = await _webClient.DownloadStringTaskAsync(DownloadsUrl);
+            string data;
+            try
+            {
+                Log.Debug($"Getting download URLs from {DownloadsUrl} . . .");
+                data = await _webClient.DownloadStringTaskAsync(DownloadsUrl);
+            }
+            catch(Exception e)
+            {
+                Log.Debug($"Getting download URLs from {DownloadsUrlCn} . . .");
+                data = await _webClient.DownloadStringTaskAsync(DownloadsUrlCn);
+            }
             using StringReader stringReader = new(data);
             using JsonReader jsonReader = new JsonTextReader(stringReader);
 

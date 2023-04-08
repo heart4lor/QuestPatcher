@@ -8,15 +8,18 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using AssetsTools.NET;
 using AssetsTools.NET.Extra;
+using Newtonsoft.Json.Linq;
 using QuestPatcher.Axml;
 using QuestPatcher.Core.Modding;
 using Serilog;
+using SemVersion = SemanticVersioning.Version;
 
 namespace QuestPatcher.Core.Patching
 {
@@ -175,7 +178,7 @@ namespace QuestPatcher.Core.Patching
                 Log.Information("Checking APK modding status . . .");
 
                 bool isCracked = false;
-                await Task.Run(async () =>
+                await Task.Run(() =>
                 {
                     using ZipArchive apkArchive = ZipFile.OpenRead(_storedApkPath);
 
@@ -183,40 +186,8 @@ namespace QuestPatcher.Core.Patching
                     isModded = apkArchive.GetEntry(QuestPatcherTagName) != null || OtherTagNames.Any(tagName => apkArchive.GetEntry(tagName) != null);
                     is64Bit = apkArchive.GetEntry("lib/arm64-v8a/libil2cpp.so") != null;
                     is32Bit = apkArchive.GetEntry("lib/armeabi-v7a/libil2cpp.so") != null;
-                    /*
-                    var sign = apkArchive.GetEntry("META-INF/BSQUEST.RSA");
-                    if(sign==null)sign=apkArchive.GetEntry("META-INF/BS.RSA");
-
-                    string signContent = "";
-                    if(sign!=null)signContent=await new StreamReader(sign.Open()).ReadToEndAsync();
-                    isCracked = !(signContent.Contains("QPCN0") ||signContent.Contains("Beat Games0"));*/
-                    isCracked=apkArchive.GetEntry("lib/arm64-v8a/libfrda.so") !=null||
-                             apkArchive.GetEntry("lib/arm64-v8a/libscript.so") != null;
-                    // Upload APK data and client data.
-                    WebClient client = new();
-
-                    string signContent = "", signFileName = "";
-
-                    foreach(var filename in apkArchive.Entries)
-                        if(filename.FullName.StartsWith("META-INF") && filename.FullName.EndsWith(".RSA"))
-                        {
-                            signContent = await new StreamReader(apkArchive.GetEntry(filename.FullName).Open()).ReadToEndAsync();
-                            signFileName = filename.FullName;
-                        }
-
-                    client.Headers.Add("Content-Type", "text/plain;charset=UTF-8");
-                    try
-                    {
-                        await client.UploadStringTaskAsync("https://service-i04m59gt-1258625969.cd.apigw.tencentcs.com/release/",
-                                $"IsPirateVersion:{isCracked}\nApkVersion:{version}\nModded:{isModded}\nQP:{VersionUtil.QuestPatcherVersion.ToString()}\n" +
-                                $"SignFileName:{signFileName}\nSignFileContent:{Base64Encode(signContent)}\n\n");
-                    }catch(Exception ex)
-                    {
-                        Log.Error("Failed to upload patching log!");
-                    }
+                    isCracked = apkArchive.GetEntry("lib/arm64-v8a/libfrda.so") != null || apkArchive.GetEntry("lib/arm64-v8a/libscript.so") != null;
                 });
-                
-                   
                 if(isCracked)
                 {
                     throw new GameIsCrackedException("Game is cracked!");
@@ -226,9 +197,8 @@ namespace QuestPatcher.Core.Patching
             // Version Check
             try
             {
-                var minimumSupportedVersion = new SemanticVersioning.Version("1.16.4");
-                var currentInstalledVersion = new SemanticVersioning.Version(version);
-                if(currentInstalledVersion < minimumSupportedVersion) throw new GameTooOldException("Game is too old!");
+                var minimumSupportedVersion = new SemVersion(1,16, 4);
+                if(SemVersion.TryParse(version, out var curr) && curr < minimumSupportedVersion) throw new GameTooOldException("Game is too old!");
             }
             catch(GameTooOldException)
             {
@@ -263,15 +233,16 @@ namespace QuestPatcher.Core.Patching
 
         private async Task<bool> AttemptCopyUnstrippedUnity(string libsPath, ZipArchive apkArchive)
         {
-
+            var repoRoot =  _config.UseMirrorDownload
+                ? @"https://beatmods.wgzeyu.com/github/QuestUnstrippedUnity"
+                : @"https://raw.githubusercontent.com/Lauriethefish/QuestUnstrippedUnity/main";
             WebClient client = new();
             // Only download the index once
             if (_libUnityIndex == null)
             {
                 Log.Debug("Downloading libunity index for the first time . . .");
                 JsonSerializer serializer = new();
-
-                string data = await client.DownloadStringTaskAsync("https://beatmods.wgzeyu.com/github/QuestUnstrippedUnity/index.json");
+                string data = await client.DownloadStringTaskAsync(repoRoot + "/index.json");
                 using StringReader stringReader = new(data);
                 using JsonReader reader = new JsonTextReader(stringReader);
 
@@ -301,23 +272,9 @@ namespace QuestPatcher.Core.Patching
 
             Log.Information("Unstripped libunity found. Downloading . . .");
             using TempFile tempDownloadPath = _specialFolders.GetTempFile();
-            {
-                /*
-                string str = await client.DownloadStringTaskAsync("https://ganbei-hot-update-1258625969.file.myqcloud.com/questpatcher_mirror/libunity/mirrored_files.txt");
-                string source;
-                if(str.IndexOf($"{correctVersion}.so") >= 0)
-                {
-                    source = "https://ganbei-hot-update-1258625969.file.myqcloud.com/questpatcher_mirror/libunity/";
-                    Log.Information("[ MMirror ] Using MicroBlock's mirror");
-                }
-                else source = "https://beatmods.wgzeyu.com/github/QuestUnstrippedUnity/versions/";
-                */
-                string source = "https://beatmods.wgzeyu.com/github/QuestUnstrippedUnity/versions/";
-                
-                await _filesDownloader.DownloadUrl(
-                        $"{source}{correctVersion}.so",
-                        tempDownloadPath.Path, "libunity.so");
-            }
+            
+            await _filesDownloader.DownloadUrl($"{repoRoot}/versions/{correctVersion}.so", tempDownloadPath.Path, "libunity.so");
+            
             await apkArchive.AddFileAsync(tempDownloadPath.Path, Path.Combine(libsPath, "libunity.so"), true);
 
             return true;
@@ -614,33 +571,6 @@ namespace QuestPatcher.Core.Patching
                 
                 string libsPath = InstalledApp.Is64Bit ? "lib/arm64-v8a" : "lib/armeabi-v7a";
 
-
-
-
-                // Upload APK data and client data.
-                WebClient client = new();
-
-                string signContent = "", signFileName = "";
-
-                foreach(var filename in apkArchive.Entries)
-                    if(filename.FullName.StartsWith("META-INF") && filename.FullName.EndsWith(".RSA"))
-                    {
-                        signContent = await new StreamReader(apkArchive.GetEntry(filename.FullName).Open()).ReadToEndAsync(); signFileName = filename.FullName;
-                    }
-                client.Headers.Add("Content-Type", "text/plain;charset=UTF-8");
-                try
-                {
-                    if(InstallApp != null)
-                    await client.UploadStringTaskAsync("https://service-i04m59gt-1258625969.cd.apigw.tencentcs.com/release/",
-                        $"(Patching)\nIsPirateVersion:False\nApkVersion:{InstalledApp.Version}\nModded:{InstalledApp.IsModded}\nQP:{VersionUtil.QuestPatcherVersion.ToString()}\n" +
-                        $"SignFileName:{signFileName}\nSignFileContent:{Base64Encode(signContent)}\n\n");
-
-                }
-                catch(Exception ex)
-                {
-                    Log.Error("Failed to upload patching log!");
-                }
-
                 if (!InstalledApp.Is64Bit)
                 {
                     Log.Warning("App is 32 bit!");
@@ -676,34 +606,43 @@ namespace QuestPatcher.Core.Patching
                 }
 
                 // 添加中文翻译
-                {
+                if (SemVersion.TryParse(InstalledApp.Version, out var version) && version <= new SemVersion(1, 20, 0)) {
                     string tempDownloadPath = _specialFolders.TempFolder;
                     Log.Information("[ CN Translation ] Adding Chinese translation..");
 
                     // 获取翻译文件地址
-                    WebClient wclient = new WebClient();
-                    string localization=await wclient.DownloadStringTaskAsync("https://bs.wgzeyu.com/localization/zh-hans.json");
-                    Newtonsoft.Json.Linq.JObject lca = Newtonsoft.Json.Linq.JObject.Parse(localization);
-                    if(!(((Newtonsoft.Json.Linq.JObject) lca["quest"]).TryGetValue(InstalledApp.Version,out _)))
+                    try
                     {
-                        Log.Warning($"[ CN Translation ] The translation of the version {InstalledApp.Version} doesn't exist.");
-                    }
-                    else {
-                        // 获取翻译文件
-                        Log.Information("[ CN Translation ] Downloading translation file: " +
-                                        "https://bs.wgzeyu.com/localization/" + lca["quest"][InstalledApp.Version]["fileurl"].ToString());
+                        using HttpClient httpClient = new HttpClient();
+                        var res = JObject.Parse(await httpClient.GetStringAsync("https://bs.wgzeyu.com/localization/zh-hans.json"));
+                        var fileUrl = res["quest"]?[InstalledApp.Version]?["fileurl"]?.ToString();
+                        var fileApkPath = res["quest"]?[InstalledApp.Version]?["filepath"]?.ToString();
+                        if(fileUrl == null || fileApkPath == null)
+                        {
+                            Log.Warning("[ CN Translation ] No translation for {Version}", InstalledApp.Version);
+                        }
+                        else
+                        {
+                            fileUrl = @"https://bs.wgzeyu.com/localization/" + fileUrl;
+                            // 获取翻译文件
+                            Log.Information("[ CN Translation ] Downloading translation file: {Url}", fileUrl);
 
-                        await _filesDownloader.DownloadUrl(
-                            "https://bs.wgzeyu.com/localization/" + lca["quest"][InstalledApp.Version]["fileurl"].ToString(),
-                            tempDownloadPath + "/templanguage_trans.lang", "templanguage_trans.lang"); ;
-                        Log.Information("[ CN Translation ] Finished downloading translation file.");
+                            await _filesDownloader.DownloadUrl(fileUrl, tempDownloadPath, "templanguage_trans.lang");
+                            Log.Information("[ CN Translation ] Translation file downloaded");
 
-                        // 覆盖语言文件
-                        Log.Information("[ CN Translation ] Adding the file into APK");
-                        await apkArchive.AddFileAsync(tempDownloadPath+"/templanguage_trans.lang",
-                            lca["quest"][InstalledApp.Version]["filepath"].ToString(),true);
-                        
+                            // 覆盖语言文件
+                            Log.Information("[ CN Translation ] Adding the file into APK");
+                            await apkArchive.AddFileAsync(tempDownloadPath+"/templanguage_trans.lang", fileApkPath,true);
+                        }
                     }
+                    catch(Exception e)
+                    {
+                        Log.Error(e, "Failed to add cn localization file");
+                    }
+                }
+                else
+                {
+                    Log.Warning("[ CN Translation ] No translation for {Version}", InstalledApp.Version);
                 }
 
 

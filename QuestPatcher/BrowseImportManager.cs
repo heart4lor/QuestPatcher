@@ -513,7 +513,7 @@ namespace QuestPatcher
                 }
                 else
                 {
-                    Log.Fatal("Core Mod {} has null download link!", mod["id"]?.ToString()?? "null");
+                    Log.Fatal("Core Mod {Id} has null download link!", mod["id"]?.ToString()?? "null");
                 }
             }
             client.Dispose();
