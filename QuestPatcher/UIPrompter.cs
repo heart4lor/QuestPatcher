@@ -10,6 +10,7 @@ using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
 using QuestPatcher.Utils;
+using Version = SemanticVersioning.Version;
 
 namespace QuestPatcher
 {
@@ -51,8 +52,10 @@ namespace QuestPatcher
                 
                 var newest = res["tag_name"]?.ToString();
                 if (newest == null) throw new Exception("Failed to check update.");
+
+                var isLatest = Version.TryParse(newest, out var latest) && latest == VersionUtil.QuestPatcherVersion;
                 
-                if (newest != VersionUtil.QuestPatcherVersion.ToString())
+                if (!isLatest)
                 {
                     DialogBuilder builder = new()
                     {
@@ -60,7 +63,7 @@ namespace QuestPatcher
                         Text = $"**不更新软件，可能会遇到未知问题，强烈建议更新至最新版**\n" +
                         $"同时，非最新版本将不受支持且不保证没有安全问题\n\n" +
                         $"您的版本 - v{VersionUtil.QuestPatcherVersion}\n" +
-                        $"最新版本 - v{newest}",
+                        $"最新版本 - v{latest?.ToString() ?? newest}",
                         HideOkButton = true,
                         HideCancelButton = true
                     };
