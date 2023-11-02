@@ -278,17 +278,15 @@ namespace QuestPatcher.Core
             return (await ListPackages()).Where(packageId => !DefaultPackagePrefixes.Any(packageId.StartsWith)).ToList();
         }
 
-        public async Task InstallApp(string apkPath, bool copyFirst)
+        public async Task InstallApp(string apkPath, bool noStreaming)
         {
-            if (copyFirst)
+            if (noStreaming)
             {
-                const string destApkPath = @"/data/local/tmp/tmp.apk";
-                await UploadFile(apkPath, destApkPath);
-                await RunCommand($"shell pm install {destApkPath}");
+                await RunCommand($"install {apkPath.EscapeProc()} --no-streaming");
             }
             else
             {
-                await RunCommand($"install \"{apkPath}\"");
+                await RunCommand($"install {apkPath.EscapeProc()}");
             }
         }
 
