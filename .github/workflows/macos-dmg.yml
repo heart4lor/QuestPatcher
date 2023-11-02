@@ -5,7 +5,9 @@ on:
     types:
       - created
   push:
-
+    branches:
+      - main
+      - dev
 jobs:
   build:
     name: Build DMG on MacOS
