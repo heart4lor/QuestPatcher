@@ -103,7 +103,7 @@ namespace QuestPatcher
             try
             {
                 if (deleteMods) await _modManager.DeleteAllMods();
-                await _installManager.Uninstall();
+                await _installManager.UninstallApp();
                 await _installManager.InstallApp(file);
             }
             finally
@@ -530,7 +530,7 @@ namespace QuestPatcher
             if (lockTheLocker) _locker.StartOperation();
             if (refreshCoreMods) await CoreModUtils.Instance.RefreshCoreMods();
             
-            var coreMods = CoreModUtils.Instance.GetCoreMods(_patchingManager.InstalledApp?.Version ?? "");
+            var coreMods = CoreModUtils.Instance.GetCoreMods(_installManager.InstalledApp?.Version ?? "");
             if (coreMods.Count > 0)
             {
                 var missingCoreMods = new List<JToken>();

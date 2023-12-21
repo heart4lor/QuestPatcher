@@ -10,7 +10,6 @@ using System.Reflection;
 using System.Threading.Tasks;
 using AssetsTools.NET;
 using AssetsTools.NET.Extra;
-using Newtonsoft.Json.Linq;
 using QuestPatcher.Axml;
 using QuestPatcher.Core.Modding;
 using Serilog;

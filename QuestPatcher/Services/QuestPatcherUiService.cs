@@ -141,7 +141,7 @@ namespace QuestPatcher.Services
                     CloseDialogue = true,
                     OnClick = async () =>
                     {
-                        await PatchingManager.Uninstall();
+                        await InstallManager.UninstallApp();
                     }
                 });
                 await builder1.OpenDialogue(_mainWindow);
@@ -180,7 +180,7 @@ namespace QuestPatcher.Services
                     ReturnValue = true,
                     OnClick = async () =>
                     {
-                        await PatchingManager.Uninstall();
+                        await InstallManager.UninstallApp();
                     }
                 };
 
