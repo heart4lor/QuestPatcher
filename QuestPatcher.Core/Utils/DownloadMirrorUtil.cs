@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Net.Http;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
-using Newtonsoft.Json.Linq;
 using Serilog;
 
 namespace QuestPatcher.Core.Utils;
@@ -46,7 +46,7 @@ public class DownloadMirrorUtil
         {
             var res = await _client.GetStringAsync(MirrorUrl, token);
 
-            var jObject = JObject.Parse(res);
+            var jObject = JsonNode.Parse(res)!.AsObject();
             token.ThrowIfCancellationRequested();
 
             var mirrorUrls = new Dictionary<string, string>(_staticMirrors);
@@ -65,11 +65,11 @@ public class DownloadMirrorUtil
             _mirrorUrls = mirrorUrls;
             _lastRefreshTime = DateTimeOffset.Now.ToUnixTimeSeconds();
         }
-        catch(OperationCanceledException)
+        catch (OperationCanceledException)
         {
             Log.Warning("Refresh mirror url cancelled");
         }
-        catch(Exception e)
+        catch (Exception e)
         {
             Log.Error(e, "Cannot fetch mirror url");
             // we don't want to overwrite what we previously have 
@@ -78,13 +78,13 @@ public class DownloadMirrorUtil
 
     public async Task<string> GetMirrorUrl(string original)
     {
-        if(DateTimeOffset.Now.ToUnixTimeSeconds() - _lastRefreshTime > 300)
+        if (DateTimeOffset.Now.ToUnixTimeSeconds() - _lastRefreshTime > 300)
         {
             Log.Information("Mirror Url cache too old! Refreshing");
             await Refresh();
         }
 
-        if(_mirrorUrls.TryGetValue(original, out var mirror))
+        if (_mirrorUrls.TryGetValue(original, out var mirror))
         {
             Log.Debug("Mirror Url found: {Mirror}", mirror);
             return mirror;

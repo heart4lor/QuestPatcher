@@ -1,5 +1,4 @@
 ﻿using Avalonia.Controls;
-using Newtonsoft.Json.Linq;
 using QuestPatcher.Core;
 using QuestPatcher.Core.Models;
 using QuestPatcher.Services;
@@ -7,6 +6,7 @@ using QuestPatcher.Views;
 using System;
 using System.Diagnostics;
 using System.Net.Http;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using QuestPatcher.Utils;
 using Version = SemanticVersioning.Version;
@@ -36,20 +36,20 @@ namespace QuestPatcher
         {
             try
             {
-                JObject? res = null;
+                JsonNode? res = null;
                 using HttpClient client = new();
                 client.DefaultRequestHeaders.Add("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/97.0.4692.71 Safari/537.36");
                 client.DefaultRequestHeaders.Add("accept", "application/json");
                 try
                 {
-                    res = JObject.Parse(await client.GetStringAsync(@"https://beatmods.wgzeyu.com/githubapi/MicroCBer/QuestPatcher/latest"));
+                    res = JsonNode.Parse(await client.GetStringAsync(@"https://beatmods.wgzeyu.com/githubapi/MicroCBer/QuestPatcher/latest"));
                 }
                 catch (Exception e)
                 {
-                    res = JObject.Parse(await client.GetStringAsync(@"https://api.github.com/repos/MicroCBer/QuestPatcher/releases/latest"));
+                    res = JsonNode.Parse(await client.GetStringAsync(@"https://api.github.com/repos/MicroCBer/QuestPatcher/releases/latest"));
                 }
                 
-                var newest = res["tag_name"]?.ToString();
+                var newest = res?["tag_name"]?.ToString();
                 if (newest == null) throw new Exception("Failed to check update.");
 
                 var isLatest = Version.TryParse(newest, out var latest) && latest == VersionUtil.QuestPatcherVersion;

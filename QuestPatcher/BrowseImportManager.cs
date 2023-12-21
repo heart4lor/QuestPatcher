@@ -2,7 +2,6 @@
 using QuestPatcher.Core.Modding;
 using QuestPatcher.Models;
 using QuestPatcher.Views;
-using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -500,24 +499,16 @@ namespace QuestPatcher
             await builder.OpenDialogue(_mainWindow);
             return selectedType;
         }
-        private async Task<bool> InstallMissingCoreMods(List<JToken> mods) {
-            WebClient client = new WebClient();
+        private async Task<bool> InstallMissingCoreMods(IList<CoreModUtils.CoreMod> mods) {
+            using var client = new WebClient();
+            //TODO Sky: use AttemptImportUri & FileDownloader from upstream
             foreach(var mod in mods)
             {
-                var modUrl = mod["downloadLink"]?.ToString();
-
-                if (modUrl != null)
-                {
-                    if (_uiService.Config.UseMirrorDownload) modUrl = await DownloadMirrorUtil.Instance.GetMirrorUrl(modUrl);
-                    await client.DownloadFileTaskAsync(modUrl, _specialFolders.TempFolder + "/coremod_tmp.qmod");
-                    await TryImportMod(_specialFolders.TempFolder + "/coremod_tmp.qmod", true,true);
-                }
-                else
-                {
-                    Log.Fatal("Core Mod {Id} has null download link!", mod["id"]?.ToString()?? "null");
-                }
+                var modUrl = mod.DownloadUrl.ToString();
+                if (_uiService.Config.UseMirrorDownload) modUrl = await DownloadMirrorUtil.Instance.GetMirrorUrl(modUrl);
+                await client.DownloadFileTaskAsync(modUrl, _specialFolders.TempFolder + "/coremod_tmp.qmod");
+                await TryImportMod(_specialFolders.TempFolder + "/coremod_tmp.qmod", true,true);
             }
-            client.Dispose();
             await _modManager.SaveMods();
             return true;
         }
@@ -533,18 +524,18 @@ namespace QuestPatcher
             var coreMods = CoreModUtils.Instance.GetCoreMods(_installManager.InstalledApp?.Version ?? "");
             if (coreMods.Count > 0)
             {
-                var missingCoreMods = new List<JToken>();
+                var missingCoreMods = new List<CoreModUtils.CoreMod>();
                 foreach(var coreMod in coreMods)
                 {
-                    var existingCoreMod = _modManager.AllMods.Find((mod => mod.Id == coreMod["id"]?.ToString()));
+                    var existingCoreMod = _modManager.AllMods.Find((mod => mod.Id == coreMod.Id));
                     if (existingCoreMod == null)
                     {
                         // not installed at all, or not for the right version of the game
                         missingCoreMods.Add(coreMod);
                     }
-                    else if (Version.TryParse(coreMod["version"]?.ToString(), true, out var version) && version > existingCoreMod.Version)
+                    else if (Version.TryParse(coreMod.Version, true, out var version) && version > existingCoreMod.Version)
                     {
-                        // this coreMod JToken is newer than the installed one
+                        // this coreMod is newer than the installed one
                         // don't allow core mod downgrade when checking against core mod json
                         
                         await existingCoreMod.Uninstall(); // delete the current one
@@ -574,7 +565,7 @@ namespace QuestPatcher
                 
                 if (missingCoreMods.Count != 0)
                 {
-                    Log.Warning("Core Mods Missing: {Mods}", missingCoreMods.Aggregate("", (s, token) => $"{s}\n{token["id"]}-{token["version"]}"));
+                    Log.Warning("Core Mods Missing: {Mods}", missingCoreMods);
                     DialogBuilder builder = new()
                     {
                         Title = "缺失核心Mod",
