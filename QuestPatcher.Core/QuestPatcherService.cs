@@ -24,15 +24,17 @@ namespace QuestPatcher.Core
         protected AndroidDebugBridge DebugBridge { get; }
         protected ExternalFilesDownloader FilesDownloader { get; }
         protected OtherFilesManager OtherFilesManager { get; }
+
+        protected InstallManager InstallManager { get; }
         protected IUserPrompter Prompter { get; }
-        
+
         protected InfoDumper InfoDumper { get; }
 
-        public Config Config => _configManager.GetOrLoadConfig();
-        
+        protected Config Config => _configManager.GetOrLoadConfig();
+
         private readonly ConfigManager _configManager;
 
-        public bool HasLoaded { get => _hasLoaded; private set { if(_hasLoaded != value) { _hasLoaded = value; NotifyPropertyChanged(); } } }
+        public bool HasLoaded { get => _hasLoaded; private set { if (_hasLoaded != value) { _hasLoaded = value; NotifyPropertyChanged(); } } }
         private bool _hasLoaded;
 
         public event PropertyChangedEventHandler? PropertyChanged;
@@ -44,6 +46,7 @@ namespace QuestPatcher.Core
             Log.Logger = SetupLogging();
 
             Prompter = prompter;
+            //TODO Sky: move to better location
             Prompter.CheckUpdate();
             _configManager = new ConfigManager(SpecialFolders);
             _configManager.GetOrLoadConfig(); // Load the config file
@@ -51,9 +54,10 @@ namespace QuestPatcher.Core
             DebugBridge = new AndroidDebugBridge(FilesDownloader, OnAdbDisconnect);
             OtherFilesManager = new OtherFilesManager(Config, DebugBridge);
             ModManager = new ModManager(Config, DebugBridge, OtherFilesManager);
+            InstallManager = new InstallManager(SpecialFolders, DebugBridge, Config, ExitApplication);
             ModManager.RegisterModProvider(new QModProvider(ModManager, Config, DebugBridge, FilesDownloader));
-            PatchingManager = new PatchingManager(Config, DebugBridge, SpecialFolders, FilesDownloader, Prompter, new ApkSigner(), ExitApplication, ModManager);
-            InfoDumper = new InfoDumper(SpecialFolders, DebugBridge, ModManager, _configManager, PatchingManager);
+            PatchingManager = new PatchingManager(Config, DebugBridge, SpecialFolders, FilesDownloader, Prompter, ModManager, InstallManager);
+            InfoDumper = new InfoDumper(SpecialFolders, DebugBridge, ModManager, _configManager, InstallManager);
 
             Log.Debug($"QuestPatcherService constructed (QuestPatcher version {VersionUtil.QuestPatcherVersion})");
         }
@@ -73,7 +77,7 @@ namespace QuestPatcher.Core
             SetLoggingOptions(configuration);
             return configuration.CreateLogger();
         }
-        
+
         /// <summary>
         /// Adds extra logging options
         /// </summary>
@@ -111,7 +115,7 @@ namespace QuestPatcher.Core
             HasLoaded = false;
             Log.Information("Starting QuestPatcher . . .");
 
-            if(!await DebugBridge.IsPackageInstalled(Config.AppId))
+            if (!await DebugBridge.IsPackageInstalled(Config.AppId))
             {
                 if (await Prompter.PromptAppNotInstalled())
                 {
@@ -125,9 +129,14 @@ namespace QuestPatcher.Core
             Log.Information("App is installed");
 
             MigrateOldFiles();
+            
             CoreModUtils.Instance.PackageId = Config.AppId;
             await Task.WhenAll(CoreModUtils.Instance.RefreshCoreMods(), DownloadMirrorUtil.Instance.Refresh());
-            await PatchingManager.LoadInstalledApp();
+            await InstallManager.LoadInstalledApp();
+            if (InstallManager.InstalledApp!.ModLoader == Modloader.Scotland2)
+            {
+                await PatchingManager.SaveScotland2(false); // Make sure that Scotland2 is saved to the right location
+            }
             await ModManager.LoadModsForCurrentApp();
             HasLoaded = true;
         }
@@ -167,12 +176,6 @@ namespace QuestPatcher.Core
             {
                 Log.Warning($"Failed to delete QP1 files: {ex}");
             }
-
-            // TODO: reimplement
-            //if(await ModManager.DetectAndRemoveOldMods())
-            //{
-            //    await Prompter.PromptUpgradeFromOld();
-            //}
         }
 
         /// <summary>
@@ -181,16 +184,9 @@ namespace QuestPatcher.Core
         /// <param name="type">What caused the disconnection</param>
         private async Task OnAdbDisconnect(DisconnectionType type)
         {
-            if(!await Prompter.PromptAdbDisconnect(type))
+            if (!await Prompter.PromptAdbDisconnect(type))
             {
                 ExitApplication();
-            }
-        }
-
-        public async Task MicroQuickFix(string type)
-        {
-            if (type=="adb_kill_server") {
-                await DebugBridge.KillServer();
             }
         }
 
@@ -206,6 +202,12 @@ namespace QuestPatcher.Core
             // Sometimes files fail to download so we clear them. This shouldn't happen anymore but I may as well add it to be on the safe side
             await FilesDownloader.ClearCache();
             await DebugBridge.PrepareAdbPath(); // Re-download ADB if necessary
+
+            if (InstallManager.InstalledApp?.ModLoader == Modloader.Scotland2)
+            {
+                // Force a reupload of sl2
+                await PatchingManager.SaveScotland2(true);
+            }
         }
     }
 }

@@ -33,7 +33,7 @@ namespace QuestPatcher.Core.Modding
             _debugBridge = debugBridge;
             _filesDownloader = filesDownloader;
         }
-        
+
         internal string GetExtractDirectory(string id)
         {
             return _modManager.GetModExtractPath(id);
@@ -43,19 +43,19 @@ namespace QuestPatcher.Core.Modding
         {
             ModsById[mod.Id] = mod;
         }
-        
+
         public override async Task<IMod> LoadFromFile(string modPath)
         {
             await using Stream modStream = File.OpenRead(modPath);
             await using QMod.QMod qmod = await QMod.QMod.ParseAsync(modStream);
-            
+
             // Check that the package ID is correct. We don't want people installing Beat Saber mods on Gorilla Tag!
             Log.Information($"Mod ID: {qmod.Id}, Version: {qmod.Version}, Is Library: {qmod.IsLibrary}");
             if (qmod.PackageId != null && qmod.PackageId != _config.AppId)
             {
                 throw new InstallationException($"该Mod适用于{qmod.PackageId}，与你目前要Mod的应用{_config.AppId}不兼容。");
             }
-            
+
             var mod = new QPMod(this, qmod.GetManifest(), _debugBridge, _filesDownloader, _modManager);
 
             // Check if upgrading from a previous version is OK, or if we have to fail the import
@@ -74,7 +74,7 @@ namespace QuestPatcher.Core.Modding
                 // Uninstall the existing mod. May throw an exception if other mods depend on the older version
                 needImmediateInstall = await PrepareVersionChange(existingInstall, mod);
             }
-            
+
             string pushPath = Path.Combine("/data/local/tmp/", $"{qmod.Id}.temp.modextract");
             // Save the mod files to the quest for later installing
             Log.Information("Pushing & extracting on to quest . . .");
@@ -85,7 +85,7 @@ namespace QuestPatcher.Core.Modding
             AddMod(mod);
             _modManager.ModLoadedCallback(mod);
 
-            if(needImmediateInstall)
+            if (needImmediateInstall)
             {
                 await mod.Install();
             }
@@ -93,7 +93,7 @@ namespace QuestPatcher.Core.Modding
             Log.Information("Import complete");
             return mod;
         }
-        
+
         /// <summary>
         /// Checks to see if upgrading from the installed version to the new version is safe.
         /// i.e. this will throw an install exception if a mod depends on the older version being present.
@@ -113,7 +113,7 @@ namespace QuestPatcher.Core.Modding
             bool installedDependants = false;
             foreach (QPMod mod in ModsById.Values)
             {
-                if(!mod.IsInstalled)
+                if (!mod.IsInstalled)
                 {
                     continue;
                 }
@@ -122,7 +122,7 @@ namespace QuestPatcher.Core.Modding
                 {
                     if (dependency.Id == currentlyInstalled.Id)
                     {
-                        if(dependency.VersionRange.IsSatisfied(newVersion.Version))
+                        if (dependency.VersionRange.IsSatisfied(newVersion.Version))
                         {
                             installedDependants = true;
                         }
@@ -138,7 +138,7 @@ namespace QuestPatcher.Core.Modding
                 }
             }
 
-            if(didFailToMatch)
+            if (didFailToMatch)
             {
                 throw new InstallationException(errorBuilder.ToString());
             }
@@ -152,7 +152,7 @@ namespace QuestPatcher.Core.Modding
 
         private QPMod AssertQMod(IMod genericMod)
         {
-            if(genericMod is QPMod mod)
+            if (genericMod is QPMod mod)
             {
                 return mod;
             }
@@ -165,25 +165,25 @@ namespace QuestPatcher.Core.Modding
         public override async Task DeleteMod(IMod genericMod)
         {
             QPMod mod = AssertQMod(genericMod);
-            
-            if(mod.IsInstalled)
+
+            if (mod.IsInstalled)
             {
                 Log.Information($"Uninstalling mod {mod.Id} to prepare for removal . . .");
                 await genericMod.Uninstall();
             }
-            
+
             Log.Information($"Removing mod {mod.Id} . . .");
             await _debugBridge.RemoveDirectory(GetExtractDirectory(mod.Id));
 
             ModsById.Remove(mod.Id);
             _modManager.ModRemovedCallback(mod);
-            
-            if(!mod.Manifest.IsLibrary)
+
+            if (!mod.Manifest.IsLibrary)
             {
                 await CleanUnusedLibraries(false);
             }
         }
-        
+
         /// <summary>
         /// Finds a list of mods which depend on this mod (i.e. ones with any dependency on this mod's ID)
         /// </summary>
@@ -225,16 +225,16 @@ namespace QuestPatcher.Core.Modding
                 }
             }
         }
-        
+
         public override IMod Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
             QModManifest? manifest = JsonSerializer.Deserialize<QModManifest>(ref reader, options);
-            if(manifest == null)
+            if (manifest == null)
             {
                 throw new NullReferenceException("Null manifest for mod");
             }
             var mod = new QPMod(this, manifest, _debugBridge, _filesDownloader, _modManager);
-            
+
             AddMod(mod);
             return mod;
         }
@@ -244,25 +244,43 @@ namespace QuestPatcher.Core.Modding
             JsonSerializer.Serialize(writer, AssertQMod(value).Manifest, options);
         }
 
-        public override async Task LoadMods()
+        public override async Task LoadModsStatus()
         {
             List<string> modFiles = await _debugBridge.ListDirectoryFiles(_modManager.ModsPath, true);
             List<string> libFiles = await _debugBridge.ListDirectoryFiles(_modManager.LibsPath, true);
+            List<string> sl2EarlyModFiles = await _debugBridge.ListDirectoryFiles(_modManager.Sl2EarlyModsPath, true);
+            List<string> sl2LateModFiles = await _debugBridge.ListDirectoryFiles(_modManager.Sl2LateModsPath, true);
+            List<string> sl2LibFiles = await _debugBridge.ListDirectoryFiles(_modManager.Sl2LibsPath, true);
 
-            foreach(QPMod mod in ModsById.Values)
+            foreach (QPMod mod in ModsById.Values)
             {
-                SetModStatus(mod, modFiles, libFiles);
+                SetModStatus(mod, modFiles, libFiles, sl2EarlyModFiles, sl2LateModFiles, sl2LibFiles);
             }
         }
 
-        private void SetModStatus(QPMod mod, List<string> modFiles, List<string> libFiles)
+        private void SetModStatus(QPMod mod, List<string> modFiles, List<string> libFiles, List<string> sl2EarlyModFiles, List<string> sl2LateModFiles, List<string> sl2LibFiles)
         {
-            bool hasAllMods = mod.Manifest.ModFileNames.TrueForAll(modFiles.Contains);
-            bool hasAllLibs = mod.Manifest.LibraryFileNames.TrueForAll(libFiles.Contains);
+            bool hasAllMods;
+            bool hasAllLibs;
+            if (mod.ModLoader == Modloader.Scotland2)
+            {
+                // Check for both early and late mods if using SL2
+                hasAllMods = mod.Manifest.ModFileNames.TrueForAll(sl2EarlyModFiles.Contains) 
+                    && mod.Manifest.LateModFileNames.TrueForAll(sl2LateModFiles.Contains);
+
+                // Use the SL2 libs folder
+                hasAllLibs = mod.Manifest.LibraryFileNames.TrueForAll(sl2LibFiles.Contains);
+            }
+            else
+            {
+                hasAllMods = mod.Manifest.ModFileNames.TrueForAll(modFiles.Contains);
+                hasAllLibs = mod.Manifest.LibraryFileNames.TrueForAll(libFiles.Contains);
+            }
+
             // TODO: Should we also check that file copies are present?
             // TODO: This would be more expensive as we would have to check the files in more directories
             // TODO: Should we check that the files in mods/libs actually match the ones within the mod?
-            
+
             mod.IsInstalled = hasAllMods && hasAllLibs;
         }
 
@@ -270,12 +288,12 @@ namespace QuestPatcher.Core.Modding
         {
             ModsById.Clear();
         }
-        
+
         public override async Task LoadLegacyMods()
         {
             var legacyFolders = await _debugBridge.ListDirectoryFolders(_modManager.ModsExtractPath);
             Log.Information($"Attempting to load {legacyFolders.Count} legacy mods");
-            foreach(var legacyFolder in legacyFolders)
+            foreach (var legacyFolder in legacyFolders)
             {
                 Log.Debug($"Loading legacy mod at {legacyFolder}");
                 var modJsonPath = Path.Combine(legacyFolder, "mod.json");
@@ -284,12 +302,12 @@ namespace QuestPatcher.Core.Modding
 
                 await using var modJsonStream = File.OpenRead(tmp.Path);
                 var manifest = await QModManifest.ParseAsync(modJsonStream);
-                
+
                 var mod = new QPMod(this, manifest, _debugBridge, _filesDownloader, _modManager);
-                
+
                 AddMod(mod);
                 _modManager.ModLoadedCallback(mod);
-            }    
+            }
         }
     }
 }

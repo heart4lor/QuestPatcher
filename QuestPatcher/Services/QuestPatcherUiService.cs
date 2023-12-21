@@ -12,6 +12,7 @@ using System.IO;
 using System.Threading.Tasks;
 using QuestPatcher.ViewModels.Modding;
 using QuestPatcher.Core;
+using QuestPatcher.Core.Models;
 using QuestPatcher.Core.Patching;
 using QuestPatcher.Utils;
 
@@ -30,6 +31,8 @@ namespace QuestPatcher.Services
         private OperationLocker? _operationLocker;
         private BrowseImportManager? _browseManager;
         private OtherItemsViewModel? _otherItemsView;
+        private PatchingViewModel? _patchingView;
+
         private readonly ThemeManager _themeManager;
         private LoadedViewModel loadedView;
         private bool _isShuttingDown;
@@ -57,20 +60,23 @@ namespace QuestPatcher.Services
             window.Height = 550;
             _operationLocker = new();
             _operationLocker.StartOperation(); // Still loading
-            _browseManager = new(OtherFilesManager, ModManager, window, PatchingManager, _operationLocker, SpecialFolders, this);
+            _browseManager = new(OtherFilesManager, ModManager, window, InstallManager, _operationLocker, this, SpecialFolders);
             ProgressViewModel progressViewModel = new(_operationLocker, FilesDownloader);
             _otherItemsView = new OtherItemsViewModel(OtherFilesManager, window, _browseManager, _operationLocker, progressViewModel);
+            _patchingView = new PatchingViewModel(Config, _operationLocker, PatchingManager, InstallManager, window, progressViewModel, FilesDownloader);
+
             loadedView = new LoadedViewModel(
-                    new PatchingViewModel(Config, _operationLocker, PatchingManager, window, progressViewModel, FilesDownloader),
-                    new ManageModsViewModel(ModManager, PatchingManager, window, _operationLocker, progressViewModel, _browseManager),
-                    _loggingViewModel,
-                    new ToolsViewModel(Config, progressViewModel, _operationLocker, window, SpecialFolders, PatchingManager, DebugBridge, this, InfoDumper,
-                        _themeManager, _browseManager, ModManager),
-                    _otherItemsView,
-                    Config,
-                    PatchingManager,
-                    _browseManager
+                _patchingView,
+                new ManageModsViewModel(ModManager, InstallManager, window, _operationLocker, progressViewModel, _browseManager),
+                _loggingViewModel,
+                new ToolsViewModel(Config, progressViewModel, _operationLocker, window, SpecialFolders, InstallManager, DebugBridge, this, InfoDumper,
+                    _themeManager, _browseManager, ModManager),
+                _otherItemsView,
+                Config,
+                InstallManager,
+                _browseManager
             );
+                
             MainWindowViewModel mainWindowViewModel = new(
                 loadedView,
                 new LoadingViewModel(progressViewModel, _loggingViewModel, Config),
@@ -81,12 +87,10 @@ namespace QuestPatcher.Services
             return window;
         }
 
-
-
         private async Task LoadAndHandleErrors()
         {
             Debug.Assert(_operationLocker != null); // Main window has been loaded, so this is assigned
-            if(_operationLocker.IsFree) // Necessary since the operation may have started earlier if this is the first load. Otherwise, we need to start the operation on subsequent loads
+            if (_operationLocker.IsFree) // Necessary since the operation may have started earlier if this is the first load. Otherwise, we need to start the operation on subsequent loads
             {
                 _operationLocker.StartOperation();
             }
@@ -98,7 +102,7 @@ namespace QuestPatcher.Services
                 // So instead, we refresh the currently selected file copy after starting, if there is one
                 _otherItemsView?.RefreshFiles();
             }
-            catch(GameNotExistException)
+            catch (GameNotExistException)
             {
                 DialogBuilder builder1 = new()
                 {
@@ -117,7 +121,7 @@ namespace QuestPatcher.Services
                     ExitApplication();
                 }
             }
-            catch(GameTooOldException)
+            catch (GameTooOldException)
             {
                 DialogBuilder builder1 = new()
                 {
@@ -143,7 +147,7 @@ namespace QuestPatcher.Services
                 await builder1.OpenDialogue(_mainWindow);
                 ExitApplication();
             }
-            catch(GameIsCrackedException)
+            catch (GameIsCrackedException)
             {
                 DialogBuilder builder1 = new()
                 {
@@ -184,7 +188,7 @@ namespace QuestPatcher.Services
                 await builder1.OpenDialogue(_mainWindow);
                 ExitApplication();
             }
-            catch(GameVersionParsingException)
+            catch (GameVersionParsingException)
             {
                 DialogBuilder builder1 = new()
                 {
@@ -211,7 +215,7 @@ namespace QuestPatcher.Services
                     ExitApplication();
                 }
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 DialogBuilder builder = new()
                 {
@@ -235,7 +239,7 @@ namespace QuestPatcher.Services
             Debug.Assert(_operationLocker != null);
 
             // Avoid showing this prompt if not in an operation, or if we are closing the window from exiting the application
-            if(_operationLocker.IsFree || _isShuttingDown) return;
+            if (_operationLocker.IsFree || _isShuttingDown) return;
 
             // Closing while operations are in progress is a bad idea, so we warn the user
             // We must set this to true at first, even if the user might press OK later.
@@ -249,7 +253,7 @@ namespace QuestPatcher.Services
             builder.OkButton.Text = "强制关闭";
 
             // Now we can exit the application if the user decides to
-            if(await builder.OpenDialogue(_mainWindow))
+            if (await builder.OpenDialogue(_mainWindow))
             {
                 ExitApplication();
             }
@@ -269,21 +273,38 @@ namespace QuestPatcher.Services
             builder.OkButton.Text = "好的";
             builder.HideCancelButton = true;
             await builder.OpenDialogue(_mainWindow);
-            if(quitIfNotSelected)
+            if (quitIfNotSelected)
             {
                 ExitApplication();
             }
         }
 
-        public async Task Reload()
+        /// <summary>
+        /// Opens a window that allows the user to change the modloader they have installed by re-patching their app.
+        /// </summary>
+        /// <param name="preferredModloader">The modloader that will be selected for patching by default. The user can change this.</param>
+        public async void OpenRepatchMenu(Modloader? preferredModloader = null)
         {
-            if(_loggingViewModel != null)
+            if (preferredModloader != null)
+            {
+                Config.PatchingOptions.ModLoader = (Modloader) preferredModloader;
+            }
+
+            Window menuWindow = new RepatchWindow();
+            menuWindow.DataContext = new RepatchWindowViewModel(_patchingView!, Config, menuWindow);
+            menuWindow.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+            await menuWindow.ShowDialog(_mainWindow);
+        }
+
+        private async Task Reload()
+        {
+            if (_loggingViewModel != null)
             {
                 _loggingViewModel.LoggedText = ""; // Avoid confusing people by not showing existing logs
             }
 
             ModManager.Reset();
-            PatchingManager.ResetInstalledApp();
+            InstallManager.ResetInstalledApp();
             await LoadAndHandleErrors();
         }
 
@@ -295,7 +316,7 @@ namespace QuestPatcher.Services
                 .WriteTo.Sink(
                 new StringDelegateSink(str =>
                 {
-                    if(_loggingViewModel != null)
+                    if (_loggingViewModel != null)
                     {
                         _loggingViewModel.LoggedText += str + "\n";
                     }

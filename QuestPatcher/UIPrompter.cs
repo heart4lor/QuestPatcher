@@ -6,7 +6,6 @@ using QuestPatcher.Services;
 using QuestPatcher.Views;
 using System;
 using System.Diagnostics;
-using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
 using QuestPatcher.Utils;
@@ -188,6 +187,7 @@ namespace QuestPatcher
                             CloseDialogue = false,
                             OnClick = async () =>
                             {
+                                //TODO Sky: device prioritization from upstream
                                 await _uiService!.MicroQuickFix("adb_kill_server");
                                 var builder2 = new DialogBuilder
                                 {
@@ -251,28 +251,15 @@ namespace QuestPatcher
             return builder.OpenDialogue(_mainWindow);
         }
 
-        public Task<bool> PromptPauseBeforeCompile()
+        public Task<bool> PromptUnknownModLoader()
         {
             DialogBuilder builder = new()
             {
-                Title = "Patching Paused",
-                Text = "APK 已修补，当您点击继续时将重新编译/重新安装。 按取消将立即停止补丁。"
+                Title = "检测到了位置Mod注入器",
+                //TODO: translate
+                Text = "The app you're attempting to patch contains a modloader that QuestPatcher doesn't recognise. QuestPatcher can attempt to replace this modloader with the one you have selected, but this may lead to a non-functional APK."
             };
-            builder.OkButton.Text = "继续";
-            builder.WithButtons(new ButtonInfo
-            {
-                Text = "显示打好补丁的APK",
-                OnClick = () =>
-                {
-                    Debug.Assert(_specialFolders != null);
-                    Process.Start(new ProcessStartInfo
-                    {
-                        FileName = _specialFolders.PatchingFolder,
-                        UseShellExecute = true,
-                        Verb = "open"
-                    });
-                }
-            });
+            builder.OkButton.Text = "仍然继续";
 
             return builder.OpenDialogue(_mainWindow);
         }
@@ -284,7 +271,7 @@ namespace QuestPatcher
                 Title = "Upgrading from QuestPatcher 1",
                 Text = "It looks as though you've previously used QuestPatcher 1.\n\n" +
                     "Note that your mods from QuestPatcher 1 will be removed - this is deliberate as QuestPatcher 2 reworks mod installing to allow toggling of mods! " +
-                    "To get your mods back, just reinstall them.\n\n" + 
+                    "To get your mods back, just reinstall them.\n\n" +
                     "NOTE: All save data, custom maps and cosmetics will remain safe!",
                 HideCancelButton = true
             };

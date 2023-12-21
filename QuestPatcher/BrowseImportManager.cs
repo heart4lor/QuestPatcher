@@ -1,6 +1,5 @@
 ﻿using Avalonia.Controls;
 using QuestPatcher.Core.Modding;
-using QuestPatcher.Core.Patching;
 using QuestPatcher.Models;
 using QuestPatcher.Views;
 using Newtonsoft.Json.Linq;
@@ -11,12 +10,11 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Net;
-using QuestPatcher.Core;
-using QuestPatcher.Services;
-using Avalonia.Media;
 using QuestPatcher.Core.Utils;
 using QuestPatcher.Utils;
 using Serilog;
+using QuestPatcher.Core;
+using QuestPatcher.Services;
 using Version = SemanticVersioning.Version;
 
 namespace QuestPatcher
@@ -36,22 +34,25 @@ namespace QuestPatcher
         private readonly OtherFilesManager _otherFilesManager;
         private readonly ModManager _modManager;
         private readonly Window _mainWindow;
-        private readonly PatchingManager _patchingManager;
+        private readonly InstallManager _installManager;
         private readonly OperationLocker _locker;
-        private readonly SpecialFolders _specialFolders;
-        private readonly FileDialogFilter _modsFilter = new();
         private readonly QuestPatcherUiService _uiService;
+        private readonly SpecialFolders _specialFolders;
+       
+        private readonly FileDialogFilter _modsFilter = new();
+
         private Queue<FileImportInfo>? _currentImportQueue;
 
-        public BrowseImportManager(OtherFilesManager otherFilesManager, ModManager modManager, Window mainWindow, PatchingManager patchingManager, OperationLocker locker,SpecialFolders specialFolders, QuestPatcherUiService uiService)
+        public BrowseImportManager(OtherFilesManager otherFilesManager, ModManager modManager, Window mainWindow, InstallManager installManager, OperationLocker locker, QuestPatcherUiService uiService ,SpecialFolders specialFolders)
         {
-            _uiService=uiService;
             _otherFilesManager = otherFilesManager;
             _modManager = modManager;
-            _specialFolders = specialFolders;
             _mainWindow = mainWindow;
-            _patchingManager = patchingManager;
+            _installManager = installManager;
             _locker = locker;
+            _uiService = uiService;
+            _specialFolders = specialFolders;
+
             _modsFilter.Name = "Quest Mods";
             _modsFilter.Extensions.Add("qmod");
         }
@@ -102,8 +103,8 @@ namespace QuestPatcher
             try
             {
                 if (deleteMods) await _modManager.DeleteAllMods();
-                await _patchingManager.Uninstall();
-                await _patchingManager.InstallApp(file);
+                await _installManager.Uninstall();
+                await _installManager.InstallApp(file);
             }
             finally
             {
@@ -138,7 +139,7 @@ namespace QuestPatcher
             WebClient client = new();
             File.Delete(_specialFolders.TempFolder + "/apkToInstall.apk");
             await client.DownloadFileTaskAsync(url+"?_="+ DateTime.Now.ToFileTime(), _specialFolders.TempFolder+"/apkToInstall.apk");
-            await _patchingManager.InstallApp( _specialFolders.TempFolder + "/apkToInstall.apk");
+            await _installManager.InstallApp( _specialFolders.TempFolder + "/apkToInstall.apk");
             _locker.FinishOperation();
             {
                 DialogBuilder builder1 = new()
@@ -188,7 +189,7 @@ namespace QuestPatcher
         }
         private void AddAllCosmeticFilters(OpenFileDialog dialog)
         {
-            foreach(FileCopyType copyType in _otherFilesManager.CurrentDestinations)
+            foreach (FileCopyType copyType in _otherFilesManager.CurrentDestinations)
             {
                 dialog.Filters.Add(GetCosmeticFilter(copyType));
             }
@@ -212,7 +213,7 @@ namespace QuestPatcher
 
             List<string> allExtensions = allFiles.Extensions;
             allExtensions.Add("qmod");
-            foreach(FileCopyType copyType in _otherFilesManager.CurrentDestinations)
+            foreach (FileCopyType copyType in _otherFilesManager.CurrentDestinations)
             {
                 allExtensions.AddRange(copyType.SupportedExtensions);
             }
@@ -258,7 +259,7 @@ namespace QuestPatcher
         private async Task ShowDialogAndHandleResult(OpenFileDialog dialog, FileCopyType? knownFileCopyType = null)
         {
             string[] files = await dialog.ShowAsync(_mainWindow);
-            if(files == null)
+            if (files == null)
             {
                 return;
             }
@@ -276,7 +277,7 @@ namespace QuestPatcher
         public async Task AttemptImportFiles(ICollection<string> files, FileCopyType? preferredCopyType = null)
         {
             bool queueExisted = _currentImportQueue != null;
-            if(_currentImportQueue == null)
+            if (_currentImportQueue == null)
             {
                 _currentImportQueue = new Queue<FileImportInfo>();
             }
@@ -293,7 +294,7 @@ namespace QuestPatcher
             }
 
             // If a queue already existed, that will be processed with our enqueued files, so we can stop here
-            if(queueExisted)
+            if (queueExisted)
             {
                 Log.Debug("Queue is already being processed");
                 return;
@@ -304,7 +305,7 @@ namespace QuestPatcher
 
             // Do nothing if attempting to import files when operations are ongoing that are not file imports
             // TODO: Ideally this would wait until the lock is free and then continue
-            if(!_locker.IsFree)
+            if (!_locker.IsFree)
             {
                 Log.Error("Failed to process files: Operations are still ongoing");
                 _currentImportQueue = null;
@@ -328,7 +329,7 @@ namespace QuestPatcher
         /// </summary>
         private async Task ProcessImportQueue()
         {
-            if(_currentImportQueue == null)
+            if (_currentImportQueue == null)
             {
                 throw new InvalidOperationException("Cannot process import queue if there is no import queue assigned");
             }
@@ -336,7 +337,7 @@ namespace QuestPatcher
             // Attempt to import each file, and catch the exceptions if any to display them below
             Dictionary<string, Exception> failedFiles = new();
             int totalProcessed = 0; // We cannot know how many files were enqueued in total, so we keep track of that here
-            while(_currentImportQueue.TryDequeue(out FileImportInfo importInfo))
+            while (_currentImportQueue.TryDequeue(out FileImportInfo importInfo))
             {
                 string path = importInfo.Path;
                 totalProcessed++;
@@ -345,7 +346,7 @@ namespace QuestPatcher
                     Log.Information($"Importing {path} . . .");
                     await ImportUnknownFile(path, importInfo.PreferredCopyType);
                 }
-                catch(Exception ex)
+                catch (Exception ex)
                 {
                     failedFiles[path] = ex;
                 }
@@ -354,7 +355,7 @@ namespace QuestPatcher
 
             Log.Information($"{totalProcessed - failedFiles.Count}/{totalProcessed} files imported successfully");
 
-            if(failedFiles.Count == 0) { return; }
+            if (failedFiles.Count == 0) { return; }
 
             bool multiple = failedFiles.Count > 1;
 
@@ -407,14 +408,14 @@ namespace QuestPatcher
             string extension = Path.GetExtension(path).ToLower();
 
             // Attempt to install as a mod first
-            if(await TryImportMod(path))
+            if (await TryImportMod(path))
             {
                 return;
             }
 
             // Attempt to copy the file to the quest as a map, hat or similar
             List<FileCopyType> copyTypes;
-            if(preferredCopyType == null || !preferredCopyType.SupportedExtensions.Contains(extension[1..]))
+            if (preferredCopyType == null || !preferredCopyType.SupportedExtensions.Contains(extension[1..]))
             {
                 copyTypes = _otherFilesManager.GetFileCopyTypes(extension);
             }
@@ -426,14 +427,14 @@ namespace QuestPatcher
                 copyTypes = new() { preferredCopyType };
             }
 
-            if(copyTypes.Count > 0)
+            if (copyTypes.Count > 0)
             {
                 FileCopyType copyType;
-                if(copyTypes.Count > 1)
+                if (copyTypes.Count > 1)
                 {
                     // If there are multiple different file copy types for this file, prompt the user to decide what they want to import it as
                     FileCopyType? chosen = await OpenSelectCopyTypeDialog(copyTypes, path);
-                    if(chosen == null)
+                    if (chosen == null)
                     {
                         Log.Information($"Cancelling file {Path.GetFileName(path)}");
                         return;
@@ -481,7 +482,7 @@ namespace QuestPatcher
             };
 
             List<ButtonInfo> dialogButtons = new();
-            foreach(FileCopyType copyType in copyTypes)
+            foreach (FileCopyType copyType in copyTypes)
             {
                 dialogButtons.Add(new ButtonInfo
                 {
@@ -606,7 +607,7 @@ namespace QuestPatcher
                 DialogBuilder builder = new()
                 {
                     Title = "未找到该版本的核心Mod！",
-                    Text = $"你当前安装的游戏版本为{_patchingManager.InstalledApp.Version}，但核心Mod还没有更新，还没有适配该版本，所以无法安装核心Mod。\n" +
+                    Text = $"你当前安装的游戏版本为{_installManager.InstalledApp.Version}，但核心Mod还没有更新，还没有适配该版本，所以无法安装核心Mod。\n" +
                     $"你可以先降级游戏再重新打补丁装Mod。\n如需降级请查看新手教程左下角",
                     HideCancelButton = manualCheck
                 };
@@ -652,25 +653,44 @@ namespace QuestPatcher
 
             // Import the mod file and copy it to the quest
             IMod? mod = await _modManager.TryParseMod(path);
-            if(mod is null)
+            if (mod is null)
             {
                 return false;
             }
 
-            Debug.Assert(_patchingManager.InstalledApp != null);
+            if (mod.ModLoader != _installManager.InstalledApp?.ModLoader)
+            {
+                DialogBuilder builder = new()
+                {
+                    //TODO translate
+                    Title = "Wrong Mod Loader",
+                    Text = $"The mod you are trying to install needs the modloader {mod.ModLoader}, however your app has the modloader {_installManager.InstalledApp?.ModLoader} installed."
+                    + "\nWould you like to repatch your app with the required modloader?"
+                };
+                builder.OkButton.Text = "Repatch";
+                builder.CancelButton.Text = "Not now";
+                if (await builder.OpenDialogue(_mainWindow))
+                {
+                    _uiService.OpenRepatchMenu(mod.ModLoader);
+                }
+
+                return true;
+            }
+
+            Debug.Assert(_installManager.InstalledApp != null);
 
             // Prompt the user for outdated mods instead of enabling them automatically
-            if(mod.PackageVersion != null && mod.PackageVersion != _patchingManager.InstalledApp.Version &&!ignoreWrongVersion)
+            if (mod.PackageVersion != null && mod.PackageVersion != _installManager.InstalledApp.Version &&!ignoreWrongVersion)
             {
                 DialogBuilder builder = new()
                 {
                     Title = "版本不匹配的Mod",
-                    Text = $"该Mod是为{mod.PackageVersion}版本的游戏开发的，然而你当前安装的游戏版本是{_patchingManager.InstalledApp.Version}。启用这个Mod可能会导致游戏崩溃，也可能不管用。"
+                    Text = $"该Mod是为{mod.PackageVersion}版本的游戏开发的，然而你当前安装的游戏版本是{_installManager.InstalledApp.Version}。启用这个Mod可能会导致游戏崩溃，也可能不管用。"
                 };
                 builder.OkButton.Text = "立即启用";
                 builder.CancelButton.Text = "取消";
 
-                if(!await builder.OpenDialogue(_mainWindow))
+                if (!await builder.OpenDialogue(_mainWindow))
                 {
                     return true;
                 }

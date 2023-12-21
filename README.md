@@ -4,7 +4,7 @@ QuestPatcher是给游戏打补丁装Mod的工具，有了它才能安装第三�
 
 该版本(Quest Patcher MWM)是 @MicroCBer 与 @WGzeyu 的修改版本，其修改的内容如下
 
-- 1.汉化界面  
+- 1.汉化界面
 - 2.增加自动打包汉化功能
 - 3.增加自动更新功能
 - 4.将软件下载源换为国内的Mirror（求赞助！）
@@ -24,7 +24,7 @@ QuestPatcher是给游戏打补丁装Mod的工具，有了它才能安装第三�
 | Github Actions | [ Github Actions ](https://github.com/MicroCBer/QuestPatcher/actions) |
 
 
-Thanks for using!  
+Thanks for using!
 
 # 相关项目
 ## Icey

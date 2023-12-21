@@ -34,6 +34,11 @@
           <TextBlock VerticalAlignment="Center" FontSize="12">可用于解决Mod出现兼容问题等原因导致的游戏闪退无法打开。把Mod删干净，重新装Mod。</TextBlock>
         </StackPanel>
         <StackPanel Orientation="Horizontal" Spacing="10">
+          <!--TODO translate-->
+          <Button Command="{Binding RestartApp}" IsEnabled="{Binding Locker.IsFree}">Restart App</Button>
+          <TextBlock VerticalAlignment="Center" FontSize="12">Closes then reopens the selected app.</TextBlock>
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Spacing="10">
           <Button Command="{Binding OpenLogsFolder}">打开日志文件夹</Button>
           <TextBlock VerticalAlignment="Center" FontSize="12">打开我们存储日志的文件夹</TextBlock>
         </StackPanel>
@@ -53,18 +58,17 @@
           <Button Command="{Binding QuickFix}" IsEnabled="{Binding Locker.IsFree}">快速修复</Button>
           <TextBlock VerticalAlignment="Center" FontSize="12">清除缓存的数据：如果出现了问题可以试试这个</TextBlock>
         </StackPanel>
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <!--TODO translate-->
+          <Button Command="{Binding RepatchApp}" IsEnabled="{Binding Locker.IsFree}">Repatch App</Button>
+          <TextBlock VerticalAlignment="Center" FontSize="12">Allows you to change the modloader you have installed by re-patching your app.</TextBlock>
+        </StackPanel>
       </StackPanel>
       <StackPanel  Margin="0 20 0 0" Spacing="10">
         <StackPanel Orientation="Horizontal" Spacing="20">
           <TextBlock FontSize="20">设置</TextBlock>
           <TextBlock FontSize="10" VerticalAlignment="Bottom" FontWeight="Light">QuestPatcher设置</TextBlock>
-        </StackPanel>
-        <StackPanel Orientation="Horizontal" Spacing="10">
-          <ToggleButton IsChecked="{Binding Config.PauseBeforeCompile}">在打完补丁后暂停</ToggleButton>
-          <TextBlock VerticalAlignment="Center" FontSize="12">
-            在打完补丁后重新签名之前显示一个提示窗口。在测试期间手动修改 APK 很有用。
-          </TextBlock>
-        </StackPanel>
+        </StackPanel> 
         <StackPanel Orientation="Horizontal" Spacing="10">
           <ToggleButton IsChecked="{Binding Config.UseMirrorDownload}" IsEnabled="False">使用国内镜像</ToggleButton>
           <TextBlock VerticalAlignment="Center" FontSize="12">
@@ -78,7 +82,6 @@
             切换APK安装方法，可能会解决打补丁或更换版本时卡死/出错。
           </TextBlock>
         </StackPanel>
-
       </StackPanel>
         <StackPanel Margin="0 20 0 0" Spacing="10">
             <StackPanel Orientation="Horizontal" Spacing="20">
@@ -100,5 +103,6 @@
             </StackPanel>
         </StackPanel>
     </StackPanel>
+    <!-- <UserControl Width="500" Margin="0 15 0 0" VerticalAlignment="Bottom" Content="{Binding ProgressView}" HorizontalAlignment="Center" DockPanel.Dock="Bottom"/> -->
   </DockPanel>
 </UserControl>

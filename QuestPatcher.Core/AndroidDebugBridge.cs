@@ -69,6 +69,8 @@ namespace QuestPatcher.Core
         private string? _adbPath;
         private Process? _logcatProcess;
 
+        private const string BridgeVersionRegex = @"Debug Bridge version (\S+)";
+
         public AndroidDebugBridge(ExternalFilesDownloader filesDownloader, Func<DisconnectionType, Task> onDisconnect)
         {
             _filesDownloader = filesDownloader;
@@ -84,56 +86,32 @@ namespace QuestPatcher.Core
             {
                 Log.Information("Preparing adb...");
                 var output = await ProcessUtil.InvokeAndCaptureOutput(_adbExecutableName, "version");
-                Log.Information(output.AllOutput);
+                Log.Debug(output.AllOutput);
                 // If the ADB EXE is already on PATH, we can just use that
-                string? bridgeVersion = null, version = null;
-
+                
+                Match match = Regex.Match(output.AllOutput, BridgeVersionRegex);
+                if (match.Success)
                 {
-                    string pattern = @"Debug Bridge version (\S+)";
-
-                    Match match = Regex.Match(output.AllOutput, pattern);
-                    if(match.Success)
-                    {
-                        Group g = match.Groups[1];
-                        bridgeVersion = g.ToString();
-                    }
-                }
-
-               /* {
-                    string pattern = @"Version (\S+)";
-
-                    Match match = Regex.Match(output.AllOutput, pattern);
-                    if(match.Success)
-                    {
-                        Group g = match.Groups[0];
-                        version = g.ToString();
-                    }
-                }*/
-
-                if(bridgeVersion != null/* && version != null*/)
-                {
-               
-                    var bridgeVersionSplited = bridgeVersion.Trim().Split(".");
-                    if(int.Parse(bridgeVersionSplited[0]) > 1 ||
-                        (int.Parse(bridgeVersionSplited[0]) == 1 &&
-                        int.Parse(bridgeVersionSplited[2]) > 32))
+                    var bridgeVersion = match.Groups[1].ToString();
+                    var version = bridgeVersion.Trim().Split(".");
+                    if (int.Parse(version[0]) > 1 || (int.Parse(version[0]) == 1 && int.Parse(version[2]) > 32))
                     {
                         _adbPath = _adbExecutableName;
-                        Log.Information($"Located ADB install on PATH. Version: {bridgeVersion} {version}");
+                        Log.Information("Located ADB install on PATH. Version: {Version}", bridgeVersion);
                     }
                     else
                     {
-                         Log.Information($"Located outdated ADB install on PATH. Version: {bridgeVersion} {version}. Downloading...");
+                         Log.Warning("Located outdated ADB install on PATH. Version: {Version}. Downloading...", bridgeVersion);
                         _adbPath = await _filesDownloader.GetFileLocation(ExternalFileType.PlatformTools);
                     }
                 }
                 else
                 {
-                    Log.Information($"Failed to detect adb version. Downloading...");
+                    Log.Warning($"Failed to detect adb version. Downloading...");
                     _adbPath = await _filesDownloader.GetFileLocation(ExternalFileType.PlatformTools);
                 }
             }
-            catch(Win32Exception) // Thrown if the file we attempted to execute does not exist (on mac & linux as well, despite saying Win32)
+            catch (Win32Exception) // Thrown if the file we attempted to execute does not exist (on mac & linux as well, despite saying Win32)
             {
                 // Otherwise, we download the tool and make it executable (only necessary on mac & linux)
                 _adbPath = await _filesDownloader.GetFileLocation(ExternalFileType.PlatformTools); // Download ADB if it hasn't been already
@@ -150,7 +128,7 @@ namespace QuestPatcher.Core
         /// <returns>The process output from executing the file</returns>
         public async Task<ProcessOutput> RunCommand(string command, params int[] allowedExitCodes)
         {
-            if(_adbPath == null)
+            if (_adbPath == null)
             {
                 await PrepareAdbPath();
             }
@@ -169,24 +147,24 @@ namespace QuestPatcher.Core
 
                 // Command execution was a success if the exit code was zero or an allowed exit code
                 // -1073740940 is always allowed as some ADB installations return it randomly, even when commands are successful.
-                if(output.ExitCode == 0 || allowedExitCodes.Contains(output.ExitCode) || output.ExitCode == -1073740940) { return output; }
+                if (output.ExitCode == 0 || allowedExitCodes.Contains(output.ExitCode) || output.ExitCode == -1073740940) { return output; }
 
                 string allOutput = output.StandardOutput + output.ErrorOutput;
 
                 // We repeatedly prompt the user to plug in their quest if it is not plugged in, or the device is offline, or if there are multiple devices
-                if(allOutput.Contains("no devices/emulators found"))
+                if (allOutput.Contains("no devices/emulators found"))
                 {
                     await _onDisconnect(DisconnectionType.NoDevice);
                 }
-                else if(allOutput.Contains("device offline"))
+                else if (allOutput.Contains("device offline"))
                 {
                     await _onDisconnect(DisconnectionType.DeviceOffline);
                 }
-                else if(allOutput.Contains("multiple devices") || output.ErrorOutput.Contains("more than one device/emulator"))
+                else if (allOutput.Contains("multiple devices") || output.ErrorOutput.Contains("more than one device/emulator"))
                 {
                     await _onDisconnect(DisconnectionType.MultipleDevices);
                 }
-                else if(allOutput.Contains("unauthorized"))
+                else if (allOutput.Contains("unauthorized"))
                 {
                     await _onDisconnect(DisconnectionType.Unauthorized);
                 }
@@ -204,10 +182,10 @@ namespace QuestPatcher.Core
         /// <param name="commands">The commands to execute</param>
         public async Task RunShellCommands(List<string> commands)
         {
-            if(commands.Count == 0) { return; } // Return blank output if no commands to avoid errors
+            if (commands.Count == 0) { return; } // Return blank output if no commands to avoid errors
 
             var currentCommand = new StringBuilder();
-            for(int i = 0; i < commands.Count; i++)
+            for (int i = 0; i < commands.Count; i++)
             {
                 currentCommand.Append(commands[i]); // Add the next command
                 // If the current batch command + the next command will be greater than our command length limit (or we're at the last command), we stop the current batch command and add the result to the list
@@ -228,7 +206,7 @@ namespace QuestPatcher.Core
         {
             return await RunCommand($"shell {command.EscapeProc()}", allowedExitCodes);
         }
-        
+
         public async Task DownloadFile(string name, string destination)
         {
             await RunCommand($"pull {name.WithForwardSlashes().EscapeProc()} {destination.EscapeProc()}");
@@ -263,10 +241,10 @@ namespace QuestPatcher.Core
         {
             string output = (await RunShellCommand("pm list packages")).StandardOutput;
             List<string> result = new();
-            foreach(string package in output.Split("\n"))
+            foreach (string package in output.Split("\n"))
             {
                 string trimmed = package.Trim();
-                if(trimmed.Length == 0) { continue; }
+                if (trimmed.Length == 0) { continue; }
                 result.Add(trimmed[8..]); // Remove the "package:" from the package ID
             }
 
@@ -278,7 +256,25 @@ namespace QuestPatcher.Core
             return (await ListPackages()).Where(packageId => !DefaultPackagePrefixes.Any(packageId.StartsWith)).ToList();
         }
 
-        public async Task InstallApp(string apkPath, bool noStreaming)
+        /// <summary>
+        /// Kills all activities relating to an app.
+        /// </summary>
+        /// <param name="appId">The app to force-stop</param>
+        public async Task ForceStop(string appId)
+        {
+            await RunShellCommand($"am force-stop {appId}");
+        }
+
+        /// <summary>
+        /// Starts the given app by running the unity player activity.
+        /// </summary>
+        /// <param name="appId">The app to start</param>
+        public async Task RunUnityPlayerActivity(string appId)
+        {
+            await RunShellCommand($"am start {appId}/com.unity3d.player.UnityPlayerActivity");
+        }
+
+        public async Task InstallApp(string apkPath, bool noStreaming = true)
         {
             if (noStreaming)
             {
@@ -327,7 +323,7 @@ namespace QuestPatcher.Core
         {
             List<string> commands = new();
 
-            foreach(KeyValuePair<string, string> path in paths)
+            foreach (KeyValuePair<string, string> path in paths)
             {
                 commands.Add($"cp {path.Key.WithForwardSlashes().EscapeBash()} {path.Value.WithForwardSlashes().EscapeBash()}");
             }
@@ -343,9 +339,26 @@ namespace QuestPatcher.Core
         public async Task CreateDirectories(List<string> paths)
         {
             List<string> commands = new();
-            foreach(string path in paths)
+            foreach (string path in paths)
             {
                 commands.Add($"mkdir -p {path.WithForwardSlashes().EscapeBash()}");
+            }
+
+            await RunShellCommands(commands);
+        }
+
+        /// <summary>
+        /// Runs chmod on the given paths.
+        /// </summary>
+        /// <param name="paths">Paths to chmod</param>
+        /// <param name="permissions">The permissions to assign to each file</param>
+        public async Task Chmod(List<string> paths, string permissions)
+        {
+            List<string> commands = new();
+            foreach (string path in paths)
+            {
+                Log.Verbose($"Ran Chmod on {path} with {permissions}");
+                commands.Add($"chmod {permissions} {path.WithForwardSlashes().EscapeBash()}");
             }
 
             await RunShellCommands(commands);
@@ -360,7 +373,7 @@ namespace QuestPatcher.Core
         public async Task DeleteFiles(List<string> paths)
         {
             List<string> commands = new();
-            foreach(string path in paths)
+            foreach (string path in paths)
             {
                 commands.Add($"rm -f {path.WithForwardSlashes().EscapeBash()}");
             }
@@ -368,7 +381,7 @@ namespace QuestPatcher.Core
             {
                 await RunShellCommands(commands);
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 if(ex.ToString().Contains("BeatTogether.cfg"))
                 {
@@ -390,7 +403,7 @@ namespace QuestPatcher.Core
             string filesNonSplit = output.StandardOutput;
 
             // Exit code 1 is only allowed if it is returned with no files, as this is what the LS command returns
-            if(filesNonSplit.Trim().Length != 0 && output.ExitCode != 0)
+            if (filesNonSplit.Trim().Length != 0 && output.ExitCode != 0)
             {
                 throw new AdbException(output.AllOutput);
             }
@@ -404,14 +417,14 @@ namespace QuestPatcher.Core
             string foldersNonSplit = output.StandardOutput;
 
             // Exit code 1 is only allowed if it is returned with no folders, as this is what the LS command returns
-            if(foldersNonSplit.Trim().Length != 0 && output.ExitCode != 0)
+            if (foldersNonSplit.Trim().Length != 0 && output.ExitCode != 0)
             {
                 throw new AdbException(output.AllOutput);
             }
 
             return ParsePaths(foldersNonSplit, path, onlyFolderName, true);
         }
-        
+
         public async Task KillServer()
         {
             await RunCommand("kill-server");
@@ -422,20 +435,20 @@ namespace QuestPatcher.Core
             // Remove unnecessary padding that ADB adds to get purely the paths
             string[] rawPaths = str.Split("\n");
             List<string> parsedPaths = new();
-            for(int i = 0; i < rawPaths.Length - 1; i++)
+            for (int i = 0; i < rawPaths.Length - 1; i++)
             {
                 string currentPath = rawPaths[i].Replace("\r", "");
-                if(currentPath[^1] == ':') // Directories within this one that aren't the first index lead to this
+                if (currentPath[^1] == ':') // Directories within this one that aren't the first index lead to this
                 {
                     break;
                 }
 
                 // The directory listing passed to this method should be that from "ls -p"
                 // This means that directories will end with a / and files will never end with a /
-                if(currentPath.EndsWith("/"))
+                if (currentPath.EndsWith("/"))
                 {
                     // If only looking for files, and our path ends with a /, it must be a folder, so we skip it
-                    if(!directories)
+                    if (!directories)
                     {
                         continue;
                     }
@@ -443,7 +456,7 @@ namespace QuestPatcher.Core
                 else
                 {
                     // If only looking for directories, and our path doesn't end with a /, it must be a file, so we skip it
-                    if(directories)
+                    if (directories)
                     {
                         continue;
                     }
@@ -468,7 +481,7 @@ namespace QuestPatcher.Core
         /// <param name="logFile">The file to save the log to. Will be overwritten if it exists</param>
         public async Task StartLogging(string logFile)
         {
-            if(_adbPath == null)
+            if (_adbPath == null)
             {
                 await PrepareAdbPath();
             }
@@ -493,9 +506,9 @@ namespace QuestPatcher.Core
                 // Sometimes ADB attempts to send data after the process exists for whatever reason, so we need to handle that
                 try
                 {
-                    if(args.Data != null) { outputWriter.WriteLine(args.Data); }
+                    if (args.Data != null) { outputWriter.WriteLine(args.Data); }
                 }
-                catch(ObjectDisposedException)
+                catch (ObjectDisposedException)
                 {
                     Log.Debug("ADB attempted to send data after it was closed");
                 }
@@ -528,7 +541,7 @@ namespace QuestPatcher.Core
         public async Task<bool> FileExists(string path)
         {
             string? dirName = Path.GetDirectoryName(path);
-            if(dirName is null)
+            if (dirName is null)
             {
                 throw new InvalidOperationException("Attempted to find if a file without a directory name exists");
             }

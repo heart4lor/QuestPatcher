@@ -18,12 +18,34 @@ namespace QuestPatcher.Core.Modding
         public List<IMod> AllMods => _modConfig?.Mods ?? EmptyModList;
         private static readonly List<IMod> EmptyModList = new();
 
+        /// <summary>
+        /// Path where QuestLoader mod files reside
+        /// </summary>
         public string ModsPath => $"/sdcard/Android/data/{_config.AppId}/files/mods/";
+
+        /// <summary>
+        /// Path where QuestLoader library files reside
+        /// </summary>
         public string LibsPath => $"/sdcard/Android/data/{_config.AppId}/files/libs/";
-        
+
+        /// <summary>
+        /// Path where Scotland2 late mods reside
+        /// </summary>
+        public string Sl2LateModsPath => $"/sdcard/ModData/{_config.AppId}/Modloader/mods/";
+
+        /// <summary>
+        /// Path where Scotland2 early mods reside.
+        /// </summary>
+        public string Sl2EarlyModsPath => $"/sdcard/ModData/{_config.AppId}/Modloader/early_mods/";
+
+        /// <summary>
+        /// Path where Scotland2 library files reside.
+        /// </summary>
+        public string Sl2LibsPath => $"/sdcard/ModData/{_config.AppId}/Modloader/libs/";
+
         private string ConfigPath => $"/sdcard/QuestPatcher/{_config.AppId}/modsStatus.json";
         public string ModsExtractPath => $"/sdcard/QuestPatcher/{_config.AppId}/installedMods/";
-        
+
         private readonly Dictionary<string, IModProvider> _modProviders = new();
         private readonly ModConverter _modConverter = new();
         private readonly Config _config;
@@ -37,7 +59,7 @@ namespace QuestPatcher.Core.Modding
 
         private ModConfig? _modConfig;
         private bool _awaitingConfigSave;
-        
+
 
         public ModManager(Config config, AndroidDebugBridge debugBridge, OtherFilesManager otherFilesManager)
         {
@@ -50,7 +72,7 @@ namespace QuestPatcher.Core.Modding
         private string NormalizeFileExtension(string extension)
         {
             string lower = extension.ToLower(); // Enforce lower case
-            if(lower.StartsWith(".")) // Remove periods at the beginning
+            if (lower.StartsWith(".")) // Remove periods at the beginning
             {
                 return lower.Substring(1);
             }
@@ -65,13 +87,13 @@ namespace QuestPatcher.Core.Modding
         public void RegisterModProvider(IModProvider provider)
         {
             string extension = NormalizeFileExtension(provider.FileExtension);
-            if(_modProviders.ContainsKey(extension))
+            if (_modProviders.ContainsKey(extension))
             {
                 throw new InvalidOperationException(
                     $"Attempted to add provider for extension {extension}, however a provider for this extension already existed");
             }
 
-            if(provider is ConfigModProvider configProvider)
+            if (provider is ConfigModProvider configProvider)
             {
                 _modConverter.RegisterProvider(configProvider);
             }
@@ -83,7 +105,7 @@ namespace QuestPatcher.Core.Modding
         {
             string extension = NormalizeFileExtension(Path.GetExtension(path));
 
-            if(_modProviders.TryGetValue(extension, out IModProvider? provider))
+            if (_modProviders.TryGetValue(extension, out IModProvider? provider))
             {
                 return await provider.LoadFromFile(path);
             }
@@ -114,7 +136,7 @@ namespace QuestPatcher.Core.Modding
             _modConfig = null;
             foreach (IModProvider provider in _modProviders.Values)
             {
-                provider.ClearMods();   
+                provider.ClearMods();
             }
 
             _awaitingConfigSave = false;
@@ -122,7 +144,10 @@ namespace QuestPatcher.Core.Modding
 
         public async Task CreateModDirectories()
         {
-            await _debugBridge.CreateDirectories(new List<string> {ModsPath, LibsPath, ModsExtractPath});
+            var modDirectories = new List<string> { ModsPath, LibsPath, Sl2LibsPath, Sl2EarlyModsPath, Sl2LateModsPath, ModsExtractPath };
+
+            await _debugBridge.CreateDirectories(modDirectories);
+            await _debugBridge.Chmod(modDirectories, "777");
         }
 
         public async Task LoadModsForCurrentApp()
@@ -131,7 +156,7 @@ namespace QuestPatcher.Core.Modding
             await CreateModDirectories();
 
             // If a config file exists, we'll need to load our mods from it
-            if(await _debugBridge.FileExists(ConfigPath))
+            if (await _debugBridge.FileExists(ConfigPath))
             {
                 Log.Debug("Loading mods from quest mod config");
                 using TempFile configTemp = new();
@@ -141,14 +166,14 @@ namespace QuestPatcher.Core.Modding
                 {
                     await using Stream configStream = File.OpenRead(configTemp.Path);
                     ModConfig? modConfig = await JsonSerializer.DeserializeAsync<ModConfig>(configStream, _configSerializationOptions);
-                    if(modConfig != null)
+                    if (modConfig != null)
                     {
                         modConfig.Mods.ForEach(ModLoadedCallback);
                         _modConfig = modConfig;
                         Log.Debug($"{AllMods.Count} mods loaded");
                     }
                 }
-                catch(Exception ex)
+                catch (Exception ex)
                 {
                     Log.Warning($"Failed to load mods from quest config: {ex}");
                 }
@@ -156,7 +181,7 @@ namespace QuestPatcher.Core.Modding
             else
             {
                 Log.Debug("No mod status config found, attempting to load legacy mods");
-                
+
                 _modConfig = new();
                 foreach (var provider in _modProviders.Values)
                 {
@@ -165,29 +190,35 @@ namespace QuestPatcher.Core.Modding
 
                 await SaveMods();
             }
-            
-            foreach(IModProvider provider in _modProviders.Values)
+
+            await UpdateModsStatus();
+        }
+
+        public async Task UpdateModsStatus()
+        {
+            Log.Information("Checking if mods are installed");
+            foreach (IModProvider provider in _modProviders.Values)
             {
-                await provider.LoadMods();
+                await provider.LoadModsStatus();
             }
         }
 
         public async Task SaveMods()
         {
-            if(!_awaitingConfigSave)
+            if (!_awaitingConfigSave)
             {
                 return;
             }
-            
-            if(_modConfig is null)
+
+            if (_modConfig is null)
             {
                 Log.Warning("Could not save mods, mod config was null");
                 return;
             }
-            
+
             Log.Information($"Saving {AllMods.Count} mods . . .");
             using TempFile configTemp = new();
-            await using(Stream configStream = File.OpenWrite(configTemp.Path))
+            await using (Stream configStream = File.OpenWrite(configTemp.Path))
             {
                 await JsonSerializer.SerializeAsync(configStream, _modConfig, _configSerializationOptions);
             }
@@ -195,7 +226,7 @@ namespace QuestPatcher.Core.Modding
             await _debugBridge.UploadFile(configTemp.Path, ConfigPath);
             _awaitingConfigSave = false;
         }
-        
+
         internal void ModLoadedCallback(IMod mod)
         {
             (mod.IsLibrary ? Libraries : Mods).Add(mod);
@@ -206,7 +237,7 @@ namespace QuestPatcher.Core.Modding
             }
             _awaitingConfigSave = true;
         }
-        
+
         internal void ModRemovedCallback(IMod mod)
         {
             (mod.IsLibrary ? Libraries : Mods).Remove(mod);

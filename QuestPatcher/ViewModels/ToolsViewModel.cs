@@ -5,25 +5,23 @@ using QuestPatcher.Views;
 using System;
 using System.Diagnostics;
 using System.IO;
-using System.Threading.Tasks;
 using ReactiveUI;
 using QuestPatcher.Core;
 using QuestPatcher.Core.Modding;
 using QuestPatcher.Core.Models;
-using QuestPatcher.Core.Patching;
 using Serilog;
+using System.Threading.Tasks;
 
 namespace QuestPatcher.ViewModels
 {
     public class ToolsViewModel : ViewModelBase
     {
-      
         public Config Config { get; }
 
         public ProgressViewModel ProgressView { get; }
 
         public OperationLocker Locker { get; }
-        
+
         public ThemeManager ThemeManager { get; }
 
         public string AdbButtonText => _isAdbLogging ? "Stop ADB Log" : "Start ADB Log";
@@ -32,7 +30,7 @@ namespace QuestPatcher.ViewModels
 
         private readonly Window _mainWindow;
         private readonly SpecialFolders _specialFolders;
-        private readonly PatchingManager _patchingManager;
+        private readonly InstallManager _installManager;
         private readonly AndroidDebugBridge _debugBridge;
         private readonly QuestPatcherUiService _uiService;
         private readonly InfoDumper _dumper;
@@ -40,7 +38,7 @@ namespace QuestPatcher.ViewModels
         private readonly ModManager _modManager;
 
         public ToolsViewModel(Config config, ProgressViewModel progressView, OperationLocker locker, 
-            Window mainWindow, SpecialFolders specialFolders, PatchingManager patchingManager, 
+            Window mainWindow, SpecialFolders specialFolders, InstallManager installManager, 
             AndroidDebugBridge debugBridge, QuestPatcherUiService uiService, InfoDumper dumper, ThemeManager themeManager, 
             BrowseImportManager browseManager, ModManager modManager)
         {
@@ -53,7 +51,7 @@ namespace QuestPatcher.ViewModels
 
             _mainWindow = mainWindow;
             _specialFolders = specialFolders;
-            _patchingManager = patchingManager;
+            _installManager = installManager;
             _debugBridge = debugBridge;
             _uiService = uiService;
             _dumper = dumper;
@@ -72,6 +70,7 @@ namespace QuestPatcher.ViewModels
 
         public async void InstallServerSwitcher()
         {
+            // TODO Sky: download apk here then call normal install
             await _browseManager.InstallApkFromUrl("https://ganbei-hot-update-1258625969.file.myqcloud.com/questpatcher_mirror/Icey-latest.apk");
         }
 
@@ -92,7 +91,7 @@ namespace QuestPatcher.ViewModels
                     try
                     {
                         Log.Information("正在卸载 . . .");
-                        await _patchingManager.UninstallCurrentApp();
+                        await _installManager.UninstallApp();
                     }
                     finally
                     {
@@ -102,7 +101,7 @@ namespace QuestPatcher.ViewModels
             }
             catch (Exception ex)
             {
-                Log.Error($"卸载 {ex} 失败！");
+                Log.Error($"卸载失败！{ex}");
             }
         }
 
@@ -164,7 +163,8 @@ namespace QuestPatcher.ViewModels
                 builder.WithException(ex);
 
                 await builder.OpenDialogue(_mainWindow);
-            }   finally
+            }
+            finally
             {
                 Locker.FinishOperation();
             }
@@ -172,7 +172,7 @@ namespace QuestPatcher.ViewModels
 
         public async void ToggleAdbLog()
         {
-            if(_isAdbLogging)
+            if (_isAdbLogging)
             {
                 _debugBridge.StopLogging();
             }
@@ -226,9 +226,47 @@ namespace QuestPatcher.ViewModels
             }
         }
 
+        public void RepatchApp()
+        {
+            _uiService.OpenRepatchMenu();
+        }
+
         public async void ChangeApp()
         {
             await _uiService.OpenChangeAppMenu(false);
+        }
+
+        public async void RestartApp()
+        {
+            try
+            {
+                Log.Information("Restarting app");
+                Locker.StartOperation();
+                await _debugBridge.ForceStop(Config.AppId);
+
+                // Run the app once, wait, and run again.
+                // This bypasses the restore app prompt
+                await _debugBridge.RunUnityPlayerActivity(Config.AppId);
+                await Task.Delay(1000);
+                await _debugBridge.RunUnityPlayerActivity(Config.AppId);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to restart app");
+                DialogBuilder builder = new()
+                {
+                    Title = "Failed to restart app",
+                    Text = "Restarting the app failed due to an unhandled error",
+                    HideCancelButton = true
+                };
+                builder.WithException(ex);
+
+                await builder.OpenDialogue(_mainWindow);
+            }
+            finally
+            {
+                Locker.FinishOperation();
+            }
         }
 
         public void OpenThemesFolder()
