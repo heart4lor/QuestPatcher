@@ -30,7 +30,8 @@ namespace QuestPatcher.Core
 
         protected InfoDumper InfoDumper { get; }
 
-        protected Config Config => _configManager.GetOrLoadConfig();
+        //TODO Sky: avoid making it public
+        public Config Config => _configManager.GetOrLoadConfig();
 
         private readonly ConfigManager _configManager;
 
@@ -46,7 +47,7 @@ namespace QuestPatcher.Core
             Log.Logger = SetupLogging();
 
             Prompter = prompter;
-            //TODO Sky: move to better location
+            //TODO Sky: move to better location, move checking logic elsewhere and prompt update in prompter
             Prompter.CheckUpdate();
             _configManager = new ConfigManager(SpecialFolders);
             _configManager.GetOrLoadConfig(); // Load the config file

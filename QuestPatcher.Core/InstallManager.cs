@@ -241,11 +241,16 @@ namespace QuestPatcher.Core
         /// Uninstalls the current app
         /// </summary>
         /// <returns></returns>
-        public async Task UninstallApp()
+        public async Task UninstallApp(bool quit = true)
         {
             await _debugBridge.UninstallApp(_config.AppId);
             InstalledApp = null;
-            _quit();
+            if (quit) _quit();
+        }
+        
+        public async Task InstallApp(string path)
+        {
+            await _debugBridge.InstallApp(path, _config.UseNewApkInstallMethod);
         }
 
         private void NotifyPropertyChanged([CallerMemberName] string propertyName = "")

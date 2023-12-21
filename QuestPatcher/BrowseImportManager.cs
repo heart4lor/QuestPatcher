@@ -103,7 +103,7 @@ namespace QuestPatcher
             try
             {
                 if (deleteMods) await _modManager.DeleteAllMods();
-                await _installManager.UninstallApp();
+                await _installManager.UninstallApp(quit: false);
                 await _installManager.InstallApp(file);
             }
             finally

@@ -180,26 +180,26 @@ namespace QuestPatcher
                 case DisconnectionType.MultipleDevices:
                     builder.Title = "插入了多个设备";
                     builder.Text = "多台 Android 设备已连接到你的电脑。\n请拔掉除 Quest 以外的所有设备（并关闭 BlueStacks 等模拟器）";
-                    builder.WithButtons(
-                        new ButtonInfo
-                        {
-                            Text = "快速修复·断开所有设备的连接",
-                            CloseDialogue = false,
-                            OnClick = async () =>
-                            {
-                                //TODO Sky: device prioritization from upstream
-                                await _uiService!.MicroQuickFix("adb_kill_server");
-                                var builder2 = new DialogBuilder
-                                {
-                                    Title = "已经断开所有安卓设备的连接",
-                                    Text = "请先重新连接你的Quest，然后重启QuestPatcher",
-                                    HideCancelButton = true,
-                                    HideOkButton = true
-                                };
-                                await builder2.OpenDialogue(_mainWindow);
-                            }
-                        }
-                    );
+                    // builder.WithButtons(
+                    //     new ButtonInfo
+                    //     {
+                    //         Text = "快速修复·断开所有设备的连接",
+                    //         CloseDialogue = false,
+                    //         OnClick = async () =>
+                    //         {
+                    //             //TODO Sky: device prioritization from upstream
+                    //             await _uiService!.MicroQuickFix("adb_kill_server");
+                    //             var builder2 = new DialogBuilder
+                    //             {
+                    //                 Title = "已经断开所有安卓设备的连接",
+                    //                 Text = "请先重新连接你的Quest，然后重启QuestPatcher",
+                    //                 HideCancelButton = true,
+                    //                 HideOkButton = true
+                    //             };
+                    //             await builder2.OpenDialogue(_mainWindow);
+                    //         }
+                    //     }
+                    // );
                     break;
                 case DisconnectionType.Unauthorized:
                     builder.Title = "设备未经授权";

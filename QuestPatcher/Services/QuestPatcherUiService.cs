@@ -296,7 +296,8 @@ namespace QuestPatcher.Services
             await menuWindow.ShowDialog(_mainWindow);
         }
 
-        private async Task Reload()
+        //TODO Sky: avoid making it public
+        public async Task Reload()
         {
             if (_loggingViewModel != null)
             {
