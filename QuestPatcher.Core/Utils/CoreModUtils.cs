@@ -122,9 +122,8 @@ public class CoreModUtils
         public Uri DownloadUrl { get; init; }
         
         [JsonPropertyName("filename")]
-        public string Filename { get; init; }
-        
-        [JsonConstructor]
+        public string? Filename { get; init; }
+
         public CoreMod(string id, string version, string downloadLink, string filename)
         {
             Id = id;

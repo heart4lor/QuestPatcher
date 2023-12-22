@@ -598,7 +598,7 @@ namespace QuestPatcher
                 DialogBuilder builder = new()
                 {
                     Title = "未找到该版本的核心Mod！",
-                    Text = $"你当前安装的游戏版本为{_installManager.InstalledApp.Version}，但核心Mod还没有更新，还没有适配该版本，所以无法安装核心Mod。\n" +
+                    Text = $"你当前安装的游戏版本为{_installManager.InstalledApp?.Version ?? "null"}，但核心Mod还没有更新，还没有适配该版本，所以无法安装核心Mod。\n" +
                     $"你可以先降级游戏再重新打补丁装Mod。\n如需降级请查看新手教程左下角",
                     HideCancelButton = manualCheck
                 };
