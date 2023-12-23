@@ -55,6 +55,22 @@ namespace QuestPatcher.ViewModels
 
         public async void StartPatching()
         {
+            if (Config.PatchingOptions.FlatScreenSupport)
+            {
+                // Disable VR requirement apparently causes infinite load
+                var builder = new DialogBuilder
+                {
+                    Title = "禁用VR要求已启用",
+                    Text = "您在补丁选项中禁用了VR要求，这可能会导致出现错误，例如启动游戏时无限加载"
+                };
+                
+                builder.OkButton.Text = "仍然继续";
+                if (await builder.OpenDialogue(_mainWindow))
+                {
+                    return;
+                }
+            }
+
             IsPatchingInProgress = true;
             Locker.StartOperation();
             try

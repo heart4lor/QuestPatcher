@@ -564,12 +564,6 @@ namespace QuestPatcher.Core.Patching
             {
                 throw new NullReferenceException("Cannot patch before installed app has been checked");
             }
-            
-            if (_config.PatchingOptions.FlatScreenSupport && !await _prompter.PromptFlatScreenWarning())
-            {
-                // Disable VR requirement apparently causes infinite load
-                return;
-            }
 
             bool scotland2 = _config.PatchingOptions.ModLoader == ModLoader.Scotland2;
 
