@@ -1,19 +1,18 @@
-﻿using Avalonia.Controls;
-using QuestPatcher.Core;
-using QuestPatcher.Core.Models;
-using QuestPatcher.Services;
-using QuestPatcher.Views;
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.Net.Http;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
+using Avalonia.Controls;
+using QuestPatcher.Core;
+using QuestPatcher.Core.Models;
+using QuestPatcher.Services;
+using QuestPatcher.Views;
 using QuestPatcher.Utils;
-using Version = SemanticVersioning.Version;
+using SemVer = SemanticVersioning.Version;
 
 namespace QuestPatcher
 {
-    
     public class UIPrompter : IUserPrompter
     {
         private Window? _mainWindow;
@@ -32,6 +31,7 @@ namespace QuestPatcher
             _uiService = uiService;
             _specialFolders = specialFolders;
         }
+        
         public async Task<bool> CheckUpdate()
         {
             try
@@ -52,7 +52,7 @@ namespace QuestPatcher
                 var newest = res?["tag_name"]?.ToString();
                 if (newest == null) throw new Exception("Failed to check update.");
 
-                var isLatest = Version.TryParse(newest, out var latest) && latest == VersionUtil.QuestPatcherVersion;
+                var isLatest = SemVer.TryParse(newest, out var latest) && latest == VersionUtil.QuestPatcherVersion;
                 
                 if (!isLatest)
                 {

@@ -1,14 +1,14 @@
-﻿using QuestPatcher.Core.Modding;
-using QuestPatcher.Core.Models;
-using QuestPatcher.Core.Patching;
-using QuestPatcher.Core.Utils;
-using Serilog;
-using Serilog.Core;
 using System;
 using System.ComponentModel;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
+using QuestPatcher.Core.Modding;
+using QuestPatcher.Core.Models;
+using QuestPatcher.Core.Patching;
+using QuestPatcher.Core.Utils;
+using Serilog;
+using Serilog.Core;
 
 namespace QuestPatcher.Core
 {
@@ -60,7 +60,7 @@ namespace QuestPatcher.Core
             PatchingManager = new PatchingManager(Config, DebugBridge, SpecialFolders, FilesDownloader, Prompter, ModManager, InstallManager);
             InfoDumper = new InfoDumper(SpecialFolders, DebugBridge, ModManager, _configManager, InstallManager);
 
-            Log.Debug($"QuestPatcherService constructed (QuestPatcher version {VersionUtil.QuestPatcherVersion})");
+            Log.Debug("QuestPatcherService constructed (QuestPatcher version {QuestPatcherVersion})", VersionUtil.QuestPatcherVersion);
         }
 
         private void NotifyPropertyChanged([CallerMemberName] string propertyName = "")
@@ -75,6 +75,7 @@ namespace QuestPatcher.Core
         private Logger SetupLogging()
         {
             LoggerConfiguration configuration = new();
+
             SetLoggingOptions(configuration);
             return configuration.CreateLogger();
         }
@@ -134,7 +135,7 @@ namespace QuestPatcher.Core
             CoreModUtils.Instance.PackageId = Config.AppId;
             await Task.WhenAll(CoreModUtils.Instance.RefreshCoreMods(), DownloadMirrorUtil.Instance.Refresh());
             await InstallManager.LoadInstalledApp();
-            if (InstallManager.InstalledApp!.ModLoader == Modloader.Scotland2)
+            if (InstallManager.InstalledApp!.ModLoader == ModLoader.Scotland2)
             {
                 await PatchingManager.SaveScotland2(false); // Make sure that Scotland2 is saved to the right location
             }
@@ -175,7 +176,7 @@ namespace QuestPatcher.Core
             }
             catch (Exception ex)
             {
-                Log.Warning($"Failed to delete QP1 files: {ex}");
+                Log.Warning(ex, "Failed to delete QP1 files");
             }
         }
 
@@ -204,7 +205,7 @@ namespace QuestPatcher.Core
             await FilesDownloader.ClearCache();
             await DebugBridge.PrepareAdbPath(); // Re-download ADB if necessary
 
-            if (InstallManager.InstalledApp?.ModLoader == Modloader.Scotland2)
+            if (InstallManager.InstalledApp?.ModLoader == ModLoader.Scotland2)
             {
                 // Force a reupload of sl2
                 await PatchingManager.SaveScotland2(true);

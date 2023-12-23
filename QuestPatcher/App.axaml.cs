@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -19,12 +19,12 @@ namespace QuestPatcher
 
         private void OnAppDomainUnhandledException(object? sender, UnhandledExceptionEventArgs args)
         {
-            if(!args.IsTerminating)
+            if (!args.IsTerminating)
             {
                 return;
             }
-            
-            Log.Error($"Unhandled exception, QuestPatcher quitting!: {args.ExceptionObject}");
+
+            Log.Error((Exception) args.ExceptionObject, "Unhandled exception, QuestPatcher quitting!");
             Log.CloseAndFlush();
         }
 
@@ -33,7 +33,7 @@ namespace QuestPatcher
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
                 AppDomain.CurrentDomain.UnhandledException += OnAppDomainUnhandledException;
-                
+
                 try
                 {
                     var questPatcherService = new QuestPatcherUiService(desktop);
@@ -45,7 +45,7 @@ namespace QuestPatcher
                 catch (Exception ex)
                 {
                     // Load the default dark theme if we crashed so early in startup that themes hadn't yet been loaded
-                    if(Styles.Count == 1)
+                    if (Styles.Count == 1)
                     {
                         Styles.Insert(0,
                             Theme.LoadEmbeddedTheme("Styles/Themes/QuestPatcherDark.axaml", "Dark").ThemeStying);

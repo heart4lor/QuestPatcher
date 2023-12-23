@@ -70,37 +70,37 @@ namespace QuestPatcher.Core
         /// </summary>
         /// <param name="apk">The APK to check for modloaders</param>
         /// <returns>The modloader detected, if any</returns>
-        private Modloader? GetModloaderSync(ApkZip apk)
+        private async Task<ModLoader?> GetModLoader(ApkZip apk)
         {
             // If APK is patched with a legacy questloader tag
             if (QuestLoaderTagNames.Any(tag => apk.ContainsFile(tag)))
             {
                 Log.Information("Legacy tag indicates APK is modded with QuestLoader");
-                return Modloader.QuestLoader;
+                return ModLoader.QuestLoader;
             }
 
             // Otherwise, we will check for the modern "modded.json" tag
             if (apk.ContainsFile(JsonTagName))
             {
-                using var jsonStream = apk.OpenReader(JsonTagName);
+                using var jsonStream = await apk.OpenReaderAsync(JsonTagName);
 
-                var tag = JsonSerializer.Deserialize<ModdedTag>(jsonStream, TagSerializerOptions);
+                var tag = await JsonSerializer.DeserializeAsync<ModdedTag>(jsonStream, TagSerializerOptions);
                 if (tag != null)
                 {
                     if (tag.ModloaderName.Equals("QuestLoader", StringComparison.OrdinalIgnoreCase))
                     {
                         Log.Information("APK is modded with QuestLoader");
-                        return Modloader.QuestLoader;
+                        return ModLoader.QuestLoader;
                     }
                     else if (tag.ModloaderName.Equals("Scotland2", StringComparison.OrdinalIgnoreCase))
                     {
                         Log.Information("APK is modded with Scotland2");
-                        return Modloader.Scotland2;
+                        return ModLoader.Scotland2;
                     }
                     else
                     {
                         Log.Warning("Unknown modloader found in APK: {ModloaderName}", tag.ModloaderName);
-                        return Modloader.Unknown;
+                        return ModLoader.Unknown;
                     }
                 }
             }
@@ -114,12 +114,12 @@ namespace QuestPatcher.Core
         /// </summary>
         /// <param name="apk">The APK to find the version of</param>
         /// <returns>The version of the APK</returns>
-        private string GetApkVersionSync(ApkZip apk)
+        private async Task<string> GetApkVersion(ApkZip apk)
         {
             // Need a seekable stream to load AXML
             using var memStream = new MemoryStream();
-            using var manifestStream = apk.OpenReader(ManifestPath);
-            manifestStream.CopyTo(memStream);
+            using var manifestStream = await apk.OpenReaderAsync(ManifestPath);
+            await manifestStream.CopyToAsync(memStream);
             memStream.Position = 0;
 
             var manifest = AxmlLoader.LoadDocument(memStream);
@@ -141,25 +141,16 @@ namespace QuestPatcher.Core
 
         private async Task CheckModdingStatus()
         {
-            bool is32Bit = false;
-            bool is64Bit = false;
-            Modloader? modloader = null;
-            string version = "";
-
             Log.Information("Checking APK modding status");
-            await Task.Run(() =>
-            {
-                using var apkStream = File.OpenRead(_currentlyInstalledPath);
-                using ApkZip apk = ApkZip.Open(apkStream);
 
+            using var apkStream = File.OpenRead(_currentlyInstalledPath);
+            await using var apk = await ApkZip.OpenAsync(apkStream);
 
-                modloader = GetModloaderSync(apk);
-                version = GetApkVersionSync(apk);
+            var modloader = await GetModLoader(apk);
+            string version = await GetApkVersion(apk);
 
-                is64Bit = apk.ContainsFile("lib/arm64-v8a/libil2cpp.so");
-                is32Bit = apk.ContainsFile("lib/armeabi-v7a/libil2cpp.so");
-            });
-
+            bool is64Bit = apk.ContainsFile("lib/arm64-v8a/libil2cpp.so");
+            bool is32Bit = apk.ContainsFile("lib/armeabi-v7a/libil2cpp.so");
 
             if (!is64Bit && !is32Bit)
             {

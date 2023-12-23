@@ -1,20 +1,20 @@
-﻿using Avalonia.Controls;
-using Avalonia.Controls.ApplicationLifetimes;
-using QuestPatcher.Models;
-using QuestPatcher.ViewModels;
-using QuestPatcher.Views;
-using Serilog;
-using Serilog.Events;
-using System;
+﻿using System;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
-using QuestPatcher.ViewModels.Modding;
+using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
 using QuestPatcher.Core;
 using QuestPatcher.Core.Models;
 using QuestPatcher.Core.Patching;
+using QuestPatcher.Models;
 using QuestPatcher.Utils;
+using QuestPatcher.ViewModels;
+using QuestPatcher.ViewModels.Modding;
+using QuestPatcher.Views;
+using Serilog;
+using Serilog.Events;
 
 namespace QuestPatcher.Services
 {
@@ -34,7 +34,6 @@ namespace QuestPatcher.Services
         private PatchingViewModel? _patchingView;
 
         private readonly ThemeManager _themeManager;
-        private LoadedViewModel loadedView;
         private bool _isShuttingDown;
 
         public QuestPatcherUiService(IClassicDesktopStyleApplicationLifetime appLifetime) : base(new UIPrompter())
@@ -45,7 +44,7 @@ namespace QuestPatcher.Services
             _mainWindow = PrepareUi();
 
             _appLifetime.MainWindow = _mainWindow;
-            UIPrompter prompter = (UIPrompter) Prompter;
+            var prompter = (UIPrompter) Prompter;
             prompter.Init(_mainWindow, Config, this, SpecialFolders);
 
             _mainWindow.Opened += async (_, _) => await LoadAndHandleErrors();
@@ -55,17 +54,19 @@ namespace QuestPatcher.Services
         private Window PrepareUi()
         {
             _loggingViewModel = new LoggingViewModel();
-            MainWindow window = new();
-            window.Width = 900;
-            window.Height = 550;
+            MainWindow window = new()
+            {
+                Width = 900,
+                Height = 550
+            };
             _operationLocker = new();
             _operationLocker.StartOperation(); // Still loading
-            _browseManager = new(OtherFilesManager, ModManager, window, InstallManager, _operationLocker, this, SpecialFolders);
+            _browseManager = new(OtherFilesManager, ModManager, window, InstallManager, _operationLocker, this, FilesDownloader, SpecialFolders);
             ProgressViewModel progressViewModel = new(_operationLocker, FilesDownloader);
             _otherItemsView = new OtherItemsViewModel(OtherFilesManager, window, _browseManager, _operationLocker, progressViewModel);
             _patchingView = new PatchingViewModel(Config, _operationLocker, PatchingManager, InstallManager, window, progressViewModel, FilesDownloader);
 
-            loadedView = new LoadedViewModel(
+            var loadedView = new LoadedViewModel(
                 _patchingView,
                 new ManageModsViewModel(ModManager, InstallManager, window, _operationLocker, progressViewModel, _browseManager),
                 _loggingViewModel,
@@ -283,11 +284,11 @@ namespace QuestPatcher.Services
         /// Opens a window that allows the user to change the modloader they have installed by re-patching their app.
         /// </summary>
         /// <param name="preferredModloader">The modloader that will be selected for patching by default. The user can change this.</param>
-        public async void OpenRepatchMenu(Modloader? preferredModloader = null)
+        public async void OpenRepatchMenu(ModLoader? preferredModloader = null)
         {
             if (preferredModloader != null)
             {
-                Config.PatchingOptions.ModLoader = (Modloader) preferredModloader;
+                Config.PatchingOptions.ModLoader = (ModLoader) preferredModloader;
             }
 
             Window menuWindow = new RepatchWindow();

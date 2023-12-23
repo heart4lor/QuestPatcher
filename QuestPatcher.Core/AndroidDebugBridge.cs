@@ -3,10 +3,10 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
-using System.Threading.Tasks;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using Serilog;
 
 namespace QuestPatcher.Core
@@ -134,16 +134,22 @@ namespace QuestPatcher.Core
             }
             Debug.Assert(_adbPath != null);
 
-            Log.Debug($"Executing ADB command: adb {command}");
+            Log.Debug("Executing ADB command: {Command}", $"adb {command}");
             while (true)
             {
-                ProcessOutput output = await ProcessUtil.InvokeAndCaptureOutput(_adbPath, command);
-                Log.Verbose($"Standard output: \"{output.StandardOutput}\"");
+                var output = await ProcessUtil.InvokeAndCaptureOutput(_adbPath, command);
+                if (output.StandardOutput.Length > 0)
+                {
+                    Log.Verbose("Standard output: {StandardOutput}", output.StandardOutput);
+                }
                 if (output.ErrorOutput.Length > 0)
                 {
-                    Log.Verbose($"Error output: \"{output.ErrorOutput}\"");
+                    Log.Verbose("Error output: {ErrorOutput}", output.ErrorOutput);
                 }
-                Log.Verbose($"Exit code: {output.ExitCode}");
+                if (output.ExitCode != 0)
+                {
+                    Log.Verbose("Exit code: {ExitCode}", output.ExitCode);
+                }
 
                 // Command execution was a success if the exit code was zero or an allowed exit code
                 // -1073740940 is always allowed as some ADB installations return it randomly, even when commands are successful.
@@ -323,7 +329,7 @@ namespace QuestPatcher.Core
         {
             List<string> commands = new();
 
-            foreach (KeyValuePair<string, string> path in paths)
+            foreach (var path in paths)
             {
                 commands.Add($"cp {path.Key.WithForwardSlashes().EscapeBash()} {path.Value.WithForwardSlashes().EscapeBash()}");
             }
@@ -357,7 +363,7 @@ namespace QuestPatcher.Core
             List<string> commands = new();
             foreach (string path in paths)
             {
-                Log.Verbose($"Ran Chmod on {path} with {permissions}");
+                Log.Verbose("Ran Chmod on {Path} with {Permissions}", path, permissions);
                 commands.Add($"chmod {permissions} {path.WithForwardSlashes().EscapeBash()}");
             }
 
@@ -399,7 +405,7 @@ namespace QuestPatcher.Core
 
         public async Task<List<string>> ListDirectoryFiles(string path, bool onlyFileName = false)
         {
-            ProcessOutput output = await RunShellCommand($"ls -p {path.WithForwardSlashes().EscapeBash()}", 1);
+            var output = await RunShellCommand($"ls -p {path.WithForwardSlashes().EscapeBash()}", 1);
             string filesNonSplit = output.StandardOutput;
 
             // Exit code 1 is only allowed if it is returned with no files, as this is what the LS command returns
@@ -413,7 +419,7 @@ namespace QuestPatcher.Core
 
         public async Task<List<string>> ListDirectoryFolders(string path, bool onlyFolderName = false)
         {
-            ProcessOutput output = await RunShellCommand($"ls -p {path.WithForwardSlashes().EscapeBash()}", 1);
+            var output = await RunShellCommand($"ls -p {path.WithForwardSlashes().EscapeBash()}", 1);
             string foldersNonSplit = output.StandardOutput;
 
             // Exit code 1 is only allowed if it is returned with no folders, as this is what the LS command returns
@@ -492,7 +498,7 @@ namespace QuestPatcher.Core
             // We can't just use RunCommand, that would be very inefficient as we'd store the whole log in memory before saving
             // Instead, we redirect the standard output to the file as it is written
             _logcatProcess = new Process();
-            ProcessStartInfo startInfo = _logcatProcess.StartInfo;
+            var startInfo = _logcatProcess.StartInfo;
             startInfo.FileName = _adbPath;
             startInfo.Arguments = "logcat";
             startInfo.RedirectStandardOutput = true;
@@ -546,7 +552,7 @@ namespace QuestPatcher.Core
                 throw new InvalidOperationException("Attempted to find if a file without a directory name exists");
             }
 
-            List<string> directoryFiles = await ListDirectoryFiles(dirName, true);
+            var directoryFiles = await ListDirectoryFiles(dirName, true);
             return directoryFiles.Contains(Path.GetFileName(path));
         }
     }

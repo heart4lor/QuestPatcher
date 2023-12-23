@@ -1,18 +1,25 @@
-﻿using QuestPatcher.Core.Models;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
+using QuestPatcher.Core.Models;
 
 namespace QuestPatcher.Core.Modding
 {
+    /// <summary>
+    /// Allows the management (viewing/deleting) and uploading of files of particular file extensions to particular folders.
+    /// For example, a mod may have support for loading a PNG file. The mod can then state this in its manifest, and we use this
+    /// information to provide a file manager for the PNG files for this mod.
+    /// </summary>
     public class OtherFilesManager : INotifyPropertyChanged
     {
+        /// <summary>
+        /// The current folders where files may need to be copied to.
+        /// </summary>
         public ObservableCollection<FileCopyType> CurrentDestinations
         {
             get
@@ -26,14 +33,12 @@ namespace QuestPatcher.Core.Modding
                 return _noTypesAvailable;
             }
         }
-        private readonly ObservableCollection<FileCopyType> _noTypesAvailable = new();
-
-        private readonly Dictionary<string, ObservableCollection<FileCopyType>> _copyIndex;
-
-        private readonly Config _config;
 
         public event PropertyChangedEventHandler? PropertyChanged;
 
+        private readonly ObservableCollection<FileCopyType> _noTypesAvailable = new();
+        private readonly Dictionary<string, ObservableCollection<FileCopyType>> _copyIndex;
+        private readonly Config _config;
 
         public OtherFilesManager(Config config, AndroidDebugBridge debugBridge)
         {
@@ -49,7 +54,7 @@ namespace QuestPatcher.Core.Modding
 
             // Load the file copy paths from resources
             // I put them in there to allow for easier changing, although it makes things a little messier in here
-            using Stream? pathsStream = Assembly.GetExecutingAssembly().GetManifestResourceStream("QuestPatcher.Core.Resources.file-copy-paths.json");
+            using var pathsStream = Assembly.GetExecutingAssembly().GetManifestResourceStream("QuestPatcher.Core.Resources.file-copy-paths.json");
             Debug.Assert(pathsStream != null);
 
             var serializerOptions = new JsonSerializerOptions
@@ -70,16 +75,11 @@ namespace QuestPatcher.Core.Modding
             _copyIndex = copyIndex;
         }
 
-        private void NotifyPropertyChanged([CallerMemberName] string propertyName = "")
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
-
         /// <summary>
-        /// Gets the file copy destinations that can support files of the given extension
+        /// Gets the file copy destinations that can support files of the given extension.
         /// </summary>
-        /// <param name="extension"></param>
-        /// <returns>The list of file copy destinations that work with the extension</returns>
+        /// <param name="extension">The file extension to search for. May be uppercase or lowercase. May or may not be period prefixed.</param>
+        /// <returns>The list of file copy destinations that work with the extension.</returns>
         public List<FileCopyType> GetFileCopyTypes(string extension)
         {
             // Sanitise the extension to remove periods and make it lower case
@@ -91,8 +91,8 @@ namespace QuestPatcher.Core.Modding
         /// <summary>
         /// Adds the given file copy.
         /// </summary>
-        /// <param name="packageId">The package ID that files of this type are intended for</param>
-        /// <param name="type">The <see cref="FileCopyType"/> to add</param>
+        /// <param name="packageId">The package ID that files of this type are intended for.</param>
+        /// <param name="type">The <see cref="FileCopyType"/> to add.</param>
         public void RegisterFileCopy(string packageId, FileCopyType type)
         {
             if (!_copyIndex.TryGetValue(packageId, out var copyTypes))
@@ -107,11 +107,16 @@ namespace QuestPatcher.Core.Modding
         /// <summary>
         /// Removes the given file copy.
         /// </summary>
-        /// <param name="packageId">The package ID that files of this type are intended for</param>
-        /// <param name="type">The <see cref="FileCopyType"/> to remove</param>
+        /// <param name="packageId">The package ID that files of this type are intended for.</param>
+        /// <param name="type">The <see cref="FileCopyType"/> to remove.</param>
         public void RemoveFileCopy(string packageId, FileCopyType type)
         {
             _copyIndex[packageId].Remove(type);
+        }
+
+        private void NotifyPropertyChanged([CallerMemberName] string propertyName = "")
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
     }
 }

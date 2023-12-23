@@ -13,7 +13,7 @@
     <DockPanel IsVisible="{Binding !IsPatchingInProgress}">
         <StackPanel Margin="20" Orientation="Vertical" DockPanel.Dock="Top">
           <ToggleButton IsChecked="{Binding Config.ShowPatchingOptions}" VerticalAlignment="Top" HorizontalAlignment="Right">高级设置</ToggleButton>
-          <ScrollViewer Margin="0 15 0 0" IsVisible="{Binding Config.ShowPatchingOptions}" HorizontalScrollBarVisibility="Auto" VerticalAlignment="Top" Background="{DynamicResource ModListBackground}">
+          <ScrollViewer Margin="0 15 0 0" IsVisible="{Binding Config.ShowPatchingOptions}" HorizontalScrollBarVisibility="Auto" VerticalAlignment="Top" Background="{DynamicResource PatchingOptionsBackground}">
               <StackPanel Orientation="Horizontal" Spacing="25" Margin="10">
                   <ToggleSwitch IsChecked="{Binding Config.PatchingOptions.ExternalFiles}" IsEnabled="False">允许读写外部存储空间</ToggleSwitch>
                   <ToggleSwitch IsChecked="{Binding Config.PatchingOptions.Debuggable}">允许调试</ToggleSwitch>

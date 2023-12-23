@@ -1,11 +1,11 @@
-﻿using Avalonia.Controls;
-using QuestPatcher.Views;
-using System;
-using ReactiveUI;
-using QuestPatcher.Models;
+﻿using System;
+using Avalonia.Controls;
+using QuestPatcher.Core;
 using QuestPatcher.Core.Models;
 using QuestPatcher.Core.Patching;
-using QuestPatcher.Core;
+using QuestPatcher.Models;
+using QuestPatcher.Views;
+using ReactiveUI;
 using Serilog;
 
 namespace QuestPatcher.ViewModels
@@ -73,7 +73,7 @@ namespace QuestPatcher.ViewModels
             catch (Exception ex)
             {
                 // Print troubleshooting information for debugging
-                Log.Error($"Patching failed!: {ex}");
+                Log.Error(ex, $"Patching failed!");
                 DialogBuilder builder = new()
                 {
                     Title = "完蛋!出错了",

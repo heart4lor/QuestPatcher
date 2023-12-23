@@ -1,6 +1,12 @@
-﻿using System.IO.Compression;
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
+using System.IO.Compression;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.X509;
 
@@ -29,7 +35,7 @@ namespace QuestPatcher.Zip
 
             using Stream manifestFile = new MemoryStream();
             using Stream sigFileBody = new MemoryStream();
-            using (StreamWriter manifestWriter = OpenStreamWriter(manifestFile))
+            using (var manifestWriter = OpenStreamWriter(manifestFile))
             {
                 manifestWriter.WriteLine("Manifest-Version: 1.0");
                 manifestWriter.WriteLine("Created-By: QuestPatcher");
@@ -37,7 +43,7 @@ namespace QuestPatcher.Zip
             }
 
             // Write the digest for each APK entry
-            foreach (var fileName in apk.Entries.ToList())
+            foreach (string? fileName in apk.Entries.ToList())
             {
                 if (fileName.StartsWith("META-INF"))
                 {
@@ -59,7 +65,7 @@ namespace QuestPatcher.Zip
 
             // Write the signature information
             using var signatureFile = new MemoryStream();
-            using (StreamWriter signatureWriter = OpenStreamWriter(signatureFile))
+            using (var signatureWriter = OpenStreamWriter(signatureFile))
             {
                 signatureWriter.WriteLine("Signature-Version: 1.0");
                 signatureWriter.WriteLine($"SHA-256-Digest-Manifest: {Convert.ToBase64String(manifestHash)}");
@@ -88,7 +94,7 @@ namespace QuestPatcher.Zip
         {
             string hash;
             if (existingHashes != null &&
-               existingHashes.TryGetValue(fileName, out var prePatchHash))
+               existingHashes.TryGetValue(fileName, out string? prePatchHash))
             {
                 hash = prePatchHash;
             }
@@ -99,8 +105,8 @@ namespace QuestPatcher.Zip
             }
 
             // First write the digest of the file to a section of the manifest file
-            using MemoryStream sectStream = new();
-            using (StreamWriter sectWriter = OpenStreamWriter(sectStream))
+            using var sectStream = new MemoryStream();
+            using (var sectWriter = OpenStreamWriter(sectStream))
             {
                 sectWriter.WriteLine($"Name: {fileName}");
                 sectWriter.WriteLine($"SHA-256-Digest: {hash}");
@@ -110,7 +116,7 @@ namespace QuestPatcher.Zip
             // Then write the hash for the section of the manifest file to the signature file
             sectStream.Position = 0;
             string sectHash = Convert.ToBase64String(sha.ComputeHash(sectStream));
-            using (StreamWriter signatureWriter = OpenStreamWriter(signatureStream))
+            using (var signatureWriter = OpenStreamWriter(signatureStream))
             {
                 signatureWriter.WriteLine($"Name: {fileName}");
                 signatureWriter.WriteLine($"SHA-256-Digest: {sectHash}");
@@ -140,9 +146,40 @@ namespace QuestPatcher.Zip
                 return null;
             }
 
-            using var manifestStream = apk.OpenReader("META-INF/MANIFEST.MF");
+            using var manifestStream = apk.OpenReader(ManifestPath);
             using var manifestReader = new StreamReader(manifestStream);
 
+            return CollectExistingHashesInternal(manifestReader);
+        }
+
+        /// <summary>
+        /// Parses the META-INF/MANIFEST.MF file within <paramref name="apk"/> and uses it to collect
+        /// the hashes of the entries within the given APK.
+        /// </summary>
+        /// <param name="apk">The archive to get the entry hashes of</param>
+        /// <param name="ct">Cancellation token.</param>
+        /// <exception cref="OperationCanceledException">If operation is canceled.</exception>
+        /// <returns>A dictionary of the full entry names and entry hashes, or null if parsing the manifest failed.</returns>
+        internal static async Task<Dictionary<string, string>?> CollectExistingHashesAsync(ApkZip apk, CancellationToken ct)
+        {
+            // Fallback failure if the APK isn't signed
+            if (!apk.ContainsFile(ManifestPath))
+            {
+                return null;
+            }
+
+            // Copy to a MemoryStream so that we can read the hashes without blocking.
+            using var manifestStream = await apk.OpenReaderAsync(ManifestPath);
+            using var memStream = new MemoryStream();
+            await manifestStream.CopyToAsync(memStream, ct);
+            memStream.Position = 0;
+            using var manifestReader = new StreamReader(memStream);
+
+            return CollectExistingHashesInternal(manifestReader);
+        }
+
+        private static Dictionary<string, string>? CollectExistingHashesInternal(StreamReader manifestReader)
+        {
             // Fallback failure if the manifest version isn't what we're expecting.
             if (manifestReader.ReadLine() != "Manifest-Version: 1.0")
             {

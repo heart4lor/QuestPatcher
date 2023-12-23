@@ -1,5 +1,3 @@
-﻿using System.Diagnostics;
-using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
@@ -9,7 +7,6 @@ namespace QuestPatcher.Views
 {
     public class LoadedView : UserControl
     {
-     
         public LoadedView()
         {
             InitializeComponent();
@@ -38,7 +35,7 @@ namespace QuestPatcher.Views
         {
             AvaloniaXamlLoader.Load(this);
 
-            
+
         }
     }
 }

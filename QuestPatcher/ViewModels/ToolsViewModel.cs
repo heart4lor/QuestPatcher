@@ -1,16 +1,16 @@
-﻿using Avalonia.Controls;
-using QuestPatcher.Models;
-using QuestPatcher.Services;
-using QuestPatcher.Views;
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.IO;
-using ReactiveUI;
+using System.Threading.Tasks;
+using Avalonia.Controls;
 using QuestPatcher.Core;
 using QuestPatcher.Core.Modding;
 using QuestPatcher.Core.Models;
+using QuestPatcher.Models;
+using QuestPatcher.Services;
+using QuestPatcher.Views;
+using ReactiveUI;
 using Serilog;
-using System.Threading.Tasks;
 
 namespace QuestPatcher.ViewModels
 {
@@ -101,10 +101,10 @@ namespace QuestPatcher.ViewModels
             }
             catch (Exception ex)
             {
-                Log.Error($"卸载失败！{ex}");
+                Log.Error(ex, "卸载失败！");
             }
         }
-
+        
         public async void DeleteAllMods()
         {
             DialogBuilder builder = new()
@@ -153,7 +153,7 @@ namespace QuestPatcher.ViewModels
             }
             catch (Exception ex)
             {
-                Log.Error($"Failed to clear cache: {ex}");
+                Log.Error(ex, "Failed to clear cache");
                 DialogBuilder builder = new()
                 {
                     Title = "Failed to clear cache",
@@ -209,7 +209,7 @@ namespace QuestPatcher.ViewModels
             catch (Exception ex)
             {
                 // Show a dialog with any errors
-                Log.Error($"Failed to create dump: {ex}");
+                Log.Error(ex, "Failed to create dump");
                 DialogBuilder builder = new()
                 {
                     Title = "Failed to create dump",

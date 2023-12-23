@@ -1,19 +1,20 @@
-﻿using ICSharpCode.SharpZipLib.Tar;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
-using System.Threading.Tasks;
-using Serilog;
-using System.Net.Http;
-using System.Text.Json.Serialization;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Threading.Tasks;
+using ICSharpCode.SharpZipLib.Tar;
+using Serilog;
 
 namespace QuestPatcher.Core
 {
@@ -277,11 +278,11 @@ namespace QuestPatcher.Core
 
             var downloadUrls = new Dictionary<ExternalFileType, List<string>>();
 
-            SemanticVersioning.Version qpVersion = VersionUtil.QuestPatcherVersion;
+            var qpVersion = VersionUtil.QuestPatcherVersion;
             // filter the compatible sets  
             downloadSets = downloadSets.Where(set => set.SupportedVersions.IsSatisfied(qpVersion));
             // Download sets are in order, highest priority comes first
-            foreach (DownloadSet downloadSet in downloadSets)
+            foreach (var downloadSet in downloadSets)
             {
                 foreach (var (type, specificValue) in downloadSet.Downloads)
                 {
@@ -317,8 +318,8 @@ namespace QuestPatcher.Core
         /// <exception cref="NullReferenceException">If the resource is missing</exception>
         private List<DownloadSet> LoadDownloadSetsFromResources()
         {
-            Assembly assembly = Assembly.GetExecutingAssembly();
-            using Stream? stream = assembly.GetManifestResourceStream("QuestPatcher.Core.Resources.file-downloads.json");
+            var assembly = Assembly.GetExecutingAssembly();
+            using var stream = assembly.GetManifestResourceStream("QuestPatcher.Core.Resources.file-downloads.json");
             if (stream == null)
             {
                 throw new NullReferenceException("Could not find file-downloads.json in resources");
@@ -340,7 +341,7 @@ namespace QuestPatcher.Core
         /// <exception cref="NullReferenceException">If no download sets were in the pulled file, i.e. it was empty</exception>
         private async Task<List<DownloadSet>> LoadDownloadSetsFromWeb()
         {
-            Log.Debug($"Getting download URLs from {DownloadsUrl} . . .");
+            Log.Debug("Getting download URLs from {DownloadsUrl} . . .", DownloadsUrl);
             using var jsonStream = await _httpClient.GetStreamAsync(DownloadsUrl);
 
             var result = await JsonSerializer.DeserializeAsync<List<DownloadSet>>(jsonStream, SerializerOptions);
@@ -360,7 +361,7 @@ namespace QuestPatcher.Core
             }
             Log.Information("Downloading {Name}", fileInfo.Name);
             Log.Verbose("Urls: {Urls}", downloadUrls);
-            foreach (var url in downloadUrls)
+            foreach (string url in downloadUrls)
             {
                 if (await TryDownloadFile(fileType, fileInfo, url, saveLocation))
                 {
@@ -373,10 +374,10 @@ namespace QuestPatcher.Core
 
         private async Task<bool> TryDownloadFile(ExternalFileType fileType, FileInfo fileInfo, string downloadUrl, string saveLocation)
         {
-            var succeeded = false;
+            bool succeeded = false;
             try
             {
-                Log.Debug($"Download URL: {downloadUrl}");
+                Log.Debug("Download URL: {DownloadUrl}", downloadUrl);
                 DownloadingFileName = fileInfo.Name;
 
                 if (fileInfo.ExtractionFolder != null)
@@ -397,7 +398,7 @@ namespace QuestPatcher.Core
                         {
                             GZipStream zipStream = new(stream, CompressionMode.Decompress);
 
-                            TarArchive archive = TarArchive.CreateInputTarArchive(zipStream, Encoding.UTF8);
+                            var archive = TarArchive.CreateInputTarArchive(zipStream, Encoding.UTF8);
                             archive.SetKeepOldFiles(false);
                             archive.ExtractContents(extractFolder, false);
                         }
@@ -445,7 +446,8 @@ namespace QuestPatcher.Core
         /// </summary>
         /// <param name="url">The url to download from</param>
         /// <param name="copyTo">The stream to copy the data to</param>
-        private async Task DownloadToStreamWithProgressAsync(string url, Stream copyTo)
+        /// <returns>The content headers returned with the file in the HTTP response.</returns>
+        private async Task<HttpContentHeaders> DownloadToStreamWithProgressAsync(string url, Stream copyTo)
         {
             const int BufferSize = 4096;
 
@@ -475,6 +477,8 @@ namespace QuestPatcher.Core
                         DownloadProgress = totalBytesRead * 100.0 / contentLength;
                     }
                 }
+
+                return contentHeaders;
             }
             finally
             {
@@ -509,7 +513,7 @@ namespace QuestPatcher.Core
         /// <exception cref="FileDownloadFailedException">If downloading the file failed with every known URL</exception>
         public async Task<string> GetFileLocation(ExternalFileType fileType)
         {
-            FileInfo fileInfo = _fileTypes[fileType];
+            var fileInfo = _fileTypes[fileType];
 
             // The save location is relative to the extract folder if requires extraction, otherwise it's just relative to the tools folder
             string saveLocation;
@@ -538,7 +542,8 @@ namespace QuestPatcher.Core
         /// <param name="saveName">Where to save the resultant file</param>
         /// <param name="overrideFileName">Used instead of the file name of saveName as the DownloadingFileName</param>
         /// <exception cref="FileDownloadFailedException">If downloading the file failed</exception>
-        public async Task DownloadUrl(string url, string saveName, string? overrideFileName = null)
+        /// <returns>The content headers returned with the file in the HTTP response.</returns>
+        public async Task<HttpContentHeaders> DownloadUri(string url, string saveName, string? overrideFileName = null)
         {
             Log.Information("[ Downloader ] Downloading {Url}\n To {SaveName}", url, saveName);
             try
@@ -546,7 +551,7 @@ namespace QuestPatcher.Core
                 DownloadingFileName = overrideFileName ?? Path.GetFileName(saveName);
 
                 using var fileStream = File.Open(saveName, FileMode.Create);
-                await DownloadToStreamWithProgressAsync(url, fileStream);
+                return await DownloadToStreamWithProgressAsync(url, fileStream);
             }
             catch (HttpRequestException ex)
             {
@@ -567,7 +572,7 @@ namespace QuestPatcher.Core
             Log.Information("Clearing downloaded file cache . . .");
             await Task.Run(() =>
             {
-                Log.Debug($"Deleting {_specialFolders.ToolsFolder} . . .");
+                Log.Debug("Deleting {FolderPath} . . .", _specialFolders.ToolsFolder);
                 Directory.Delete(_specialFolders.ToolsFolder, true); // Also deletes the saved downloaded files file
                 _fullyDownloaded.Clear();
             });

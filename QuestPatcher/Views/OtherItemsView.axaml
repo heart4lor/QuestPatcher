@@ -19,7 +19,7 @@
       <StackPanel DockPanel.Dock="Top" Spacing="10">
         <UserControl Content="{Binding ProgressView}" />
         <TextBlock>选择要管理的文件类型:</TextBlock>
-        <ComboBox Items="{Binding FilesManager.CurrentDestinations}" SelectedItem="{Binding SelectedFileCopy}" HorizontalAlignment="Stretch">
+        <ComboBox ItemsSource="{Binding FilesManager.CurrentDestinations}" SelectedItem="{Binding SelectedFileCopy}" HorizontalAlignment="Stretch">
           <ComboBox.ItemTemplate>
             <DataTemplate>
               <Panel>
@@ -41,7 +41,7 @@
             <Button Command="{Binding DeleteSelectedFiles}" IsEnabled="{Binding CanDeleteSelectedFiles}">删除选中的文件</Button>
             <Button Command="{Binding DeleteAllFiles}" IsEnabled="{Binding CanUseFileCopies}">删除所有文件</Button>
           </StackPanel>
-          <ListBox Items="{Binding SelectedFileCopy.ExistingFiles}" SelectedItems="{Binding SelectedFiles}" SelectionMode="Multiple" ScrollViewer.HorizontalScrollBarVisibility="Disabled" DockPanel.Dock="Top">
+          <ListBox ItemsSource="{Binding SelectedFileCopy.ExistingFiles}" SelectedItems="{Binding SelectedFiles}" SelectionMode="Multiple" ScrollViewer.HorizontalScrollBarVisibility="Disabled" DockPanel.Dock="Top">
             <ListBox.Styles>
               <Style Selector="ListBoxItem">
                 <Setter Property="HorizontalContentAlignment" Value="Stretch"></Setter>

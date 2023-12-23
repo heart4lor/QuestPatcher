@@ -1,17 +1,14 @@
 ﻿using System;
 using System.Diagnostics;
-using ReactiveUI;
-using QuestPatcher.ViewModels.Modding;
-using QuestPatcher.Core.Models;
-using Avalonia.Input;
-using System.Collections.Generic;
-using System.Runtime.InteropServices;
 using System.Linq;
-using System.Net;
-using Serilog;
+using System.Runtime.InteropServices;
+using Avalonia.Input;
 using QuestPatcher.Core;
+using QuestPatcher.Core.Models;
 using QuestPatcher.Utils;
-using QuestPatcher.Views;
+using QuestPatcher.ViewModels.Modding;
+using ReactiveUI;
+using Serilog;
 
 #pragma warning disable CA1822
 namespace QuestPatcher.ViewModels
@@ -61,7 +58,7 @@ namespace QuestPatcher.ViewModels
         {
             get
             {
-                DateTime now = DateTime.Now;
+                var now = DateTime.Now;
                 bool isAprilFools = now.Month == 4 && now.Day == 1;
                 return isAprilFools ? "QuestCorrupter" : "QuestPatcher";
             }
@@ -125,15 +122,27 @@ namespace QuestPatcher.ViewModels
             // We need to handle this to avoid crashing QuestPatcher.
             try
             {
-                IEnumerable<string>? fileNames = args.Data.GetFileNames();
-                if (fileNames == null) // Non-file items dragged
+                string? text = args.Data.GetText();
+                if (text != null)
                 {
-                    Log.Debug("Drag and drop contained no file names");
-                    return;
+                    var creationOptions = new UriCreationOptions();
+                    if (Uri.TryCreate(text, in creationOptions, out var uri))
+                    {
+                        await _browseManager.AttemptImportUri(uri);
+                    }
+                    return; // Getting the URI text disposes the DragEventArgs.Data, so avoid accessing this disposed object.
                 }
 
-                Log.Debug("Files found in drag and drop. Processing . . .");
-                await _browseManager.AttemptImportFiles(fileNames.ToList(), OtherItemsView.SelectedFileCopy);
+                var files = args.Data.GetFiles();
+                if (files != null)
+                {
+                    Log.Debug("Files found in drag and drop. Processing . . .");
+                    await _browseManager.AttemptImportFiles(files.Select(file => new FileImportInfo(file.Path.LocalPath)
+                    {
+                        PreferredCopyType = OtherItemsView.SelectedFileCopy
+                    }).ToList());
+                }
+
             }
             catch (COMException)
             {

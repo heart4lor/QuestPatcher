@@ -10,26 +10,39 @@ using Serilog;
 
 namespace QuestPatcher.Core.Modding
 {
+    /// <summary>
+    /// Oversees the installation, uninstallation and storage of mods.
+    /// </summary>
     public class ModManager
     {
+        /// <summary>
+        /// The currently loaded mods.
+        /// </summary>
         public ObservableCollection<IMod> Mods { get; } = new();
+
+        /// <summary>
+        /// The currently loaded libraries.
+        /// </summary>
         public ObservableCollection<IMod> Libraries { get; } = new();
 
+        /// <summary>
+        /// All mods and libraries.
+        /// </summary>
         public List<IMod> AllMods => _modConfig?.Mods ?? EmptyModList;
         private static readonly List<IMod> EmptyModList = new();
 
         /// <summary>
-        /// Path where QuestLoader mod files reside
+        /// Path where QuestLoader mod files reside.
         /// </summary>
         public string ModsPath => $"/sdcard/Android/data/{_config.AppId}/files/mods/";
 
         /// <summary>
-        /// Path where QuestLoader library files reside
+        /// Path where QuestLoader library files reside.
         /// </summary>
         public string LibsPath => $"/sdcard/Android/data/{_config.AppId}/files/libs/";
 
         /// <summary>
-        /// Path where Scotland2 late mods reside
+        /// Path where Scotland2 late mods reside.
         /// </summary>
         public string Sl2LateModsPath => $"/sdcard/ModData/{_config.AppId}/Modloader/mods/";
 
@@ -43,8 +56,15 @@ namespace QuestPatcher.Core.Modding
         /// </summary>
         public string Sl2LibsPath => $"/sdcard/ModData/{_config.AppId}/Modloader/libs/";
 
-        private string ConfigPath => $"/sdcard/QuestPatcher/{_config.AppId}/modsStatus.json";
+        /// <summary>
+        /// Path where mods are extracted. A subdirectory should be created for each mod ID that needs extraction.
+        /// </summary>
         public string ModsExtractPath => $"/sdcard/QuestPatcher/{_config.AppId}/installedMods/";
+
+        /// <summary>
+        /// The path to the config file where mod data is stored.
+        /// </summary>
+        private string ConfigPath => $"/sdcard/QuestPatcher/{_config.AppId}/modsStatus.json";
 
         private readonly Dictionary<string, IModProvider> _modProviders = new();
         private readonly ModConverter _modConverter = new();
@@ -69,27 +89,17 @@ namespace QuestPatcher.Core.Modding
             _otherFilesManager = otherFilesManager;
         }
 
-        private string NormalizeFileExtension(string extension)
-        {
-            string lower = extension.ToLower(); // Enforce lower case
-            if (lower.StartsWith(".")) // Remove periods at the beginning
-            {
-                return lower.Substring(1);
-            }
-            return lower;
-        }
-
-        public string GetModExtractPath(string id)
-        {
-            return Path.Combine(ModsExtractPath, id);
-        }
-
+        /// <summary>
+        /// Registers a mod provider. The provider will then be called upon to load mods as necessary.
+        /// </summary>
+        /// <param name="provider">The provider to register.</param>
+        /// <exception cref="ArgumentException">If the provider added used a file extension</exception>
         public void RegisterModProvider(IModProvider provider)
         {
             string extension = NormalizeFileExtension(provider.FileExtension);
             if (_modProviders.ContainsKey(extension))
             {
-                throw new InvalidOperationException(
+                throw new ArgumentException(
                     $"Attempted to add provider for extension {extension}, however a provider for this extension already existed");
             }
 
@@ -101,11 +111,17 @@ namespace QuestPatcher.Core.Modding
             _modProviders[extension] = provider;
         }
 
-        public async Task<IMod?> TryParseMod(string path)
+        /// <summary>
+        /// Attempts to parse the mod in a particular file.
+        /// </summary>
+        /// <param name="path">The path to the mod. File extension is important a this is used as an early check to see if a mod is valid.</param>
+        /// <param name="overrideExtension">Can be used if the file extension of <see cref="path"/> does not match the mod type.</param>
+        /// <returns>The parsed mod, or null if no provider could load a mod with the given path.</returns>
+        public async Task<IMod?> TryParseMod(string path, string? overrideExtension = null)
         {
-            string extension = NormalizeFileExtension(Path.GetExtension(path));
+            string extension = NormalizeFileExtension(overrideExtension ?? Path.GetExtension(path));
 
-            if (_modProviders.TryGetValue(extension, out IModProvider? provider))
+            if (_modProviders.TryGetValue(extension, out var provider))
             {
                 return await provider.LoadFromFile(path);
             }
@@ -113,11 +129,16 @@ namespace QuestPatcher.Core.Modding
             return null;
         }
 
+        /// <summary>
+        /// Deletes a mod, removing all mod files and uninstalling it if it was installed.
+        /// </summary>
+        /// <param name="mod">The mod to delete.</param>
+        /// <exception cref="InstallationException">If uninstalling the mod failed, prior to removal.</exception>
         public async Task DeleteMod(IMod mod)
         {
             await mod.Provider.DeleteMod(mod);
         }
-
+        
         public async Task DeleteAllMods()
         {
             Log.Warning("DELETING ALL MODS!");
@@ -129,12 +150,16 @@ namespace QuestPatcher.Core.Modding
             await SaveMods();
         }
 
+        /// <summary>
+        /// Clears all mods from all providers.
+        /// Can be useful if the currently selected app changes.
+        /// </summary>
         public void Reset()
         {
             Mods.Clear();
             Libraries.Clear();
             _modConfig = null;
-            foreach (IModProvider provider in _modProviders.Values)
+            foreach (var provider in _modProviders.Values)
             {
                 provider.ClearMods();
             }
@@ -142,14 +167,43 @@ namespace QuestPatcher.Core.Modding
             _awaitingConfigSave = false;
         }
 
+        /// <summary>
+        /// Creates the directories where mod files are copied to.
+        /// </summary>
         public async Task CreateModDirectories()
         {
+            const string Permissions = "777";
+
             var modDirectories = new List<string> { ModsPath, LibsPath, Sl2LibsPath, Sl2EarlyModsPath, Sl2LateModsPath, ModsExtractPath };
 
             await _debugBridge.CreateDirectories(modDirectories);
-            await _debugBridge.Chmod(modDirectories, "777");
+            try
+            {
+                await _debugBridge.Chmod(modDirectories, Permissions);
+            }
+            catch (AdbException ex)
+            {
+                Log.Warning(ex, "Failed to chmod mod directories, they will be deleted and recreated, this will disable all QuestLoader mods.");
+                var modsAndLibs = new List<string> { ModsPath, LibsPath };
+
+                await _debugBridge.RemoveDirectory(ModsPath);
+                await _debugBridge.RemoveDirectory(LibsPath);
+                await _debugBridge.CreateDirectories(modsAndLibs);
+
+                try
+                {
+                    await _debugBridge.Chmod(modsAndLibs, Permissions);
+                }
+                catch (AdbException ex2)
+                {
+                    Log.Error(ex2, "Failed to chmod mod directories on the second attempt! Mods will not load!");
+                }
+            }
         }
 
+        /// <summary>
+        /// Loads/registers the mods for the currently selected app.
+        /// </summary>
         public async Task LoadModsForCurrentApp()
         {
             Log.Information("Loading mods . . .");
@@ -165,17 +219,17 @@ namespace QuestPatcher.Core.Modding
                 try
                 {
                     await using Stream configStream = File.OpenRead(configTemp.Path);
-                    ModConfig? modConfig = await JsonSerializer.DeserializeAsync<ModConfig>(configStream, _configSerializationOptions);
+                    var modConfig = await JsonSerializer.DeserializeAsync<ModConfig>(configStream, _configSerializationOptions);
                     if (modConfig != null)
                     {
                         modConfig.Mods.ForEach(ModLoadedCallback);
                         _modConfig = modConfig;
-                        Log.Debug($"{AllMods.Count} mods loaded");
+                        Log.Debug("{ModsCount} mods loaded", AllMods.Count);
                     }
                 }
                 catch (Exception ex)
                 {
-                    Log.Warning($"Failed to load mods from quest config: {ex}");
+                    Log.Warning(ex, "Failed to load mods from quest config");
                 }
             }
             else
@@ -194,15 +248,22 @@ namespace QuestPatcher.Core.Modding
             await UpdateModsStatus();
         }
 
+        /// <summary>
+        /// Checks every mod to see if it is installed.
+        /// May be called after an operation that could affect the mod file directories, and so may change mod status.
+        /// </summary>
         public async Task UpdateModsStatus()
         {
             Log.Information("Checking if mods are installed");
-            foreach (IModProvider provider in _modProviders.Values)
+            foreach (var provider in _modProviders.Values)
             {
                 await provider.LoadModsStatus();
             }
         }
 
+        /// <summary>
+        /// Saves the current registered mods that use a <see cref="ConfigModProvider"/> to the mod config file.
+        /// </summary>
         public async Task SaveMods()
         {
             if (!_awaitingConfigSave)
@@ -216,7 +277,7 @@ namespace QuestPatcher.Core.Modding
                 return;
             }
 
-            Log.Information($"Saving {AllMods.Count} mods . . .");
+            Log.Information("Saving {ModsCount} mods . . .", AllMods.Count);
             using TempFile configTemp = new();
             await using (Stream configStream = File.OpenWrite(configTemp.Path))
             {
@@ -227,6 +288,21 @@ namespace QuestPatcher.Core.Modding
             _awaitingConfigSave = false;
         }
 
+        /// <summary>
+        /// Gets the path where a mod should be extracted to.
+        /// </summary>
+        /// <param name="id">The ID of the mod.</param>
+        /// <returns>The full path to the extract location on the quest.</returns>
+        internal string GetModExtractPath(string id)
+        {
+            return Path.Combine(ModsExtractPath, id);
+        }
+
+        /// <summary>
+        /// Registers a mod with the mod manager.
+        /// Should be called whenever a mod is loaded by a provider.
+        /// </summary>
+        /// <param name="mod">The mod to register.</param>
         internal void ModLoadedCallback(IMod mod)
         {
             (mod.IsLibrary ? Libraries : Mods).Add(mod);
@@ -238,6 +314,11 @@ namespace QuestPatcher.Core.Modding
             _awaitingConfigSave = true;
         }
 
+        /// <summary>
+        /// Unregisters a mod with the mod manager.
+        /// Should be called whenever a mod is unloaded/deleted by a provider.
+        /// </summary>
+        /// <param name="mod">The mod to unregister.</param>
         internal void ModRemovedCallback(IMod mod)
         {
             (mod.IsLibrary ? Libraries : Mods).Remove(mod);
@@ -247,6 +328,21 @@ namespace QuestPatcher.Core.Modding
             }
             _modConfig?.Mods.Remove(mod);
             _awaitingConfigSave = true;
+        }
+
+        /// <summary>
+        /// Makes a file extension lowercase and removes the leading period, if there is one.
+        /// </summary>
+        /// <param name="extension">The file extension to normalize.</param>
+        /// <returns>The normalized file extension.</returns>
+        private string NormalizeFileExtension(string extension)
+        {
+            string lower = extension.ToLower(); // Enforce lower case
+            if (lower.StartsWith(".")) // Remove periods at the beginning
+            {
+                return lower.Substring(1);
+            }
+            return lower;
         }
     }
 }

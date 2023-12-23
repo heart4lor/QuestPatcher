@@ -20,11 +20,11 @@
           <!-- <TextBlock TextAlignment="Center" Text="Modified by MicroBlock &amp; SkyQe &amp; WGzeyu" FontSize="10" -->
           <!--            TextTrimming="CharacterEllipsis" /> -->
         </StackPanel>
-    </ExperimentalAcrylicBorder>
+      </ExperimentalAcrylicBorder>
         
-    <ExperimentalAcrylicBorder IsHitTestVisible="False" Material="{DynamicResource SelectedSectionBackgroundMaterial}">
-        <TextBlock Text="{Binding #TabControl.SelectedItem.Header}" Margin="40 20" FontSize="32" FontWeight="Light" />
-    </ExperimentalAcrylicBorder>
+      <ExperimentalAcrylicBorder IsHitTestVisible="False" Material="{DynamicResource SelectedSectionBackgroundMaterial}">
+          <TextBlock Text="{Binding #TabControl.SelectedItem.Header}" Margin="40 20" FontSize="32" FontWeight="Light" />
+      </ExperimentalAcrylicBorder>
     </DockPanel>
     
     <TabControl Classes="sidebar">
