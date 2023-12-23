@@ -18,7 +18,7 @@
             <UserControl Content="{Binding ProgressView}" Padding="20"/>
             <UserControl Content="{Binding LoggingView}" Width="470" Height="200" IsVisible="{Binding Config.DisplayLogs}" />
           </StackPanel>
-          <ToggleSwitch Content="Display Logs" HorizontalAlignment="Left" IsChecked="{Binding Config.DisplayLogs}" VerticalAlignment="Bottom"/>
+          <ToggleSwitch Content="显示日志" OffContent="隐藏" OnContent="显示" HorizontalAlignment="Left" IsChecked="{Binding Config.DisplayLogs}" VerticalAlignment="Bottom"/>
         </Panel>
         </ExperimentalAcrylicBorder>
     </DockPanel>

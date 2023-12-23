@@ -39,8 +39,8 @@
               </StackPanel>
               <StackPanel Orientation="Horizontal" Spacing="5">
                 <Button Command="{Binding SelectSplashPath}">选择</Button>
-                <TextBlock Text="{Binding CustomSplashPath}" IsVisible="{Binding CustomSplashPath, Converter={x:Static ObjectConverters.IsNotNull}}>" VerticalAlignment="Center"/>
-                <TextBlock Text="未选择" IsVisible="{Binding CustomSplashPath, Converter={x:Static ObjectConverters.IsNull}}>" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding CustomSplashPath}" IsVisible="{Binding CustomSplashPath, Converter={x:Static ObjectConverters.IsNotNull}}" VerticalAlignment="Center"/>
+                <TextBlock Text="未选择" IsVisible="{Binding CustomSplashPath, Converter={x:Static ObjectConverters.IsNull}}" VerticalAlignment="Center" />
               </StackPanel>
             </StackPanel>
           </Panel>
@@ -53,7 +53,7 @@
           <TextBlock TextAlignment="Center">在打补丁期间，请保证网络连接</TextBlock>
         </StackPanel>
         <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
-          <TextBlock Margin="0 7 0 0">Choose the modloader to patch with: </TextBlock>
+          <TextBlock Margin="0 7 0 0">选择打补丁用的Mod注入器: </TextBlock>
           <ComboBox SelectedIndex="{Binding Config.PatchingOptions.ModLoader}">
             <ComboBoxItem>QuestLoader</ComboBoxItem>
             <ComboBoxItem>Scotland2</ComboBoxItem>

@@ -6,7 +6,7 @@
         mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="220" SizeToContent="Height" MinWidth="450" Width="450"
         x:Class="QuestPatcher.Views.SelectDeviceWindow"
         Icon="/Assets/questpatcher-logo.ico"
-        Title="Change Selected Device"
+        Title="更换设备"
         Background="{x:Null}"
         ExtendClientAreaToDecorationsHint="true"
         ExtendClientAreaTitleBarHeightHint="-1"
@@ -20,20 +20,20 @@
     <ExperimentalAcrylicBorder DockPanel.Dock="Left" Padding="10" IsHitTestVisible="True" Material="{DynamicResource MainBackgroundMaterial}">
 
       <StackPanel Spacing="10" HorizontalAlignment="Center">
-        <TextBlock HorizontalAlignment="Center" TextDecorations="Underline">Select Device</TextBlock>
-        <TextBlock TextAlignment="Center" TextWrapping="Wrap">Multiple Android devices are connected to your computer. Please select the device to use by clicking a row in the grid shown below.</TextBlock>
+        <TextBlock HorizontalAlignment="Center" TextDecorations="Underline">选择设备</TextBlock>
+        <TextBlock TextAlignment="Center" TextWrapping="Wrap">检测到多个连接的安卓设备，请在下方选择您想使用的设备</TextBlock>
 
         <DataGrid Margin="20" ItemsSource="{Binding Devices}"
                     IsReadOnly="True"
                     SelectedItem="{Binding SelectedDevice}"
                     GridLinesVisibility="All"
-                    Background="{DynamicResource ModListBackground}>">
+                    Background="{DynamicResource ModListBackground}">
           <DataGrid.Columns>
             <DataGridTextColumn Header="Model"  Binding="{Binding Model}"/>
             <DataGridTextColumn Header="Id" Binding="{Binding Id}" Width="*" />
           </DataGrid.Columns>
         </DataGrid>        
-        <Button Command="{Binding OnSelectDevice}" HorizontalAlignment="Center" HorizontalContentAlignment="Center">Select Device</Button>
+        <Button Command="{Binding OnSelectDevice}" HorizontalAlignment="Center" HorizontalContentAlignment="Center">确定</Button>
       </StackPanel>
     </ExperimentalAcrylicBorder>
   </DockPanel>
