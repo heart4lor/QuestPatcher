@@ -8,6 +8,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using QuestPatcher.Core;
 using QuestPatcher.Core.Models;
 using QuestPatcher.Core.Patching;
+using QuestPatcher.Core.Utils;
 using QuestPatcher.Models;
 using QuestPatcher.Utils;
 using QuestPatcher.ViewModels;
@@ -103,16 +104,18 @@ namespace QuestPatcher.Services
                 // So instead, we refresh the currently selected file copy after starting, if there is one
                 _otherItemsView?.RefreshFiles();
             }
-            catch (GameNotExistException)
+            catch (GameNotInstalledException)
             {
                 DialogBuilder builder1 = new()
                 {
-                    Title = "尚未安装BeatSaber", Text = "请先安装正版BeatSaber！", HideCancelButton = true
+                    Title = "尚未安装BeatSaber", 
+                    Text = "请先安装正版BeatSaber！", 
+                    HideCancelButton = true
                 };
                 builder1.OkButton.Text = "安装APK";
-                if(await builder1.OpenDialogue(_mainWindow) && _browseManager != null)
+                if (await builder1.OpenDialogue(_mainWindow) && _browseManager != null)
                 {
-                    if(!await _browseManager!.AskToInstallApk())
+                    if (!await _browseManager!.AskToInstallApk())
                     {
                         ExitApplication();
                     }
@@ -121,32 +124,6 @@ namespace QuestPatcher.Services
                 {
                     ExitApplication();
                 }
-            }
-            catch (GameTooOldException)
-            {
-                DialogBuilder builder1 = new()
-                {
-                    Title = "旧版的BeatSaber！",
-                    Text = "已安装的BeatSaber版本过于老旧\n" +
-                           "QuestPatcher只支持1.16.4及以上版本，不支持远古版本。",
-                    HideCancelButton = true
-                };
-                builder1.WithButtons(new ButtonInfo
-                {
-                    Text = "购买正版",
-                    CloseDialogue = false,
-                    OnClick = () => Util.OpenWebpage("https://www.oculus.com/experiences/quest/2448060205267927")
-                }, new ButtonInfo
-                {
-                    Text = "卸载当前版本",
-                    CloseDialogue = true,
-                    OnClick = async () =>
-                    {
-                        await InstallManager.UninstallApp();
-                    }
-                });
-                await builder1.OpenDialogue(_mainWindow);
-                ExitApplication();
             }
             catch (GameIsCrackedException)
             {
@@ -188,33 +165,6 @@ namespace QuestPatcher.Services
                 builder1.WithButtons(button1, button2, button3);
                 await builder1.OpenDialogue(_mainWindow);
                 ExitApplication();
-            }
-            catch (GameVersionParsingException)
-            {
-                DialogBuilder builder1 = new()
-                {
-                    Title = "无法识别游戏版本！",
-                    Text = "已安装的BeatSaber版本号无法识别\n请降级BeatSaber或升级QuestPatcher"
-                };
-                builder1.OkButton.Text = "更换游戏版本";
-                builder1.CancelButton.Text = "退出";
-                builder1.WithButtons(new ButtonInfo{
-                    Text = "降级教程",
-                    CloseDialogue = false,
-                    OnClick = () => Util.OpenWebpage("https://bs.wgzeyu.com/oq-guide-qp/#install_qp")
-                    });
-                if(await builder1.OpenDialogue(_mainWindow) && _browseManager != null)
-                {
-                    _operationLocker.FinishOperation();
-                    if(!await _browseManager!.UninstallAndInstall())
-                    {
-                        ExitApplication();
-                    }
-                }
-                else
-                {
-                    ExitApplication();
-                }
             }
             catch (Exception ex)
             {
@@ -265,7 +215,7 @@ namespace QuestPatcher.Services
         /// </summary>
         public async Task OpenChangeAppMenu(bool quitIfNotSelected)
         {
-            Config.AppId = "com.beatgames.beatsaber";
+            Config.AppId = CoreModUtils.BeatSaberPackageID;
             DialogBuilder builder = new()
             {
                 Title = "该改版无法Mod其他应用！",

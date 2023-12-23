@@ -14,9 +14,10 @@ public class CoreModUtils
 {
     public static readonly CoreModUtils Instance = new();
     
+    public const string BeatSaberPackageID = @"com.beatgames.beatsaber";
+    
     private const string BeatSaberCoreModsUrl = @"https://github.com/qe201020335/BMBFResourceMirror/raw/master/com.beatgames.beatsaber/core-mods.json";
     private const string BeatSaberCoreModsCnUrl = @"https://beatmods.wgzeyu.com/github/BMBFresources/com.beatgames.beatsaber/core-mods.json";
-    private const string BeatSaberPackageID = @"com.beatgames.beatsaber";
     private readonly HttpClient _client = new();
     private CoreModUtils()
     {
@@ -40,7 +41,7 @@ public class CoreModUtils
     }
 
     private Dictionary<string, IList<CoreMod>>? _coreModsMap;  // game version: core mods
-    private string _coreModPackageId = "";
+    private string _coreModPackageId = BeatSaberPackageID;
 
     private CancellationTokenSource? _cancellationTokenSource;
     

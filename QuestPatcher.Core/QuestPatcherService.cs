@@ -120,22 +120,15 @@ namespace QuestPatcher.Core
 
             if (!await DebugBridge.IsPackageInstalled(Config.AppId))
             {
-                if (await Prompter.PromptAppNotInstalled())
-                {
-                    return; // New app ID selected - we will later reload
-                }
-                else
-                {
-                    ExitApplication();
-                }
+                throw new GameNotInstalledException("Beat Saber is not installed!");
             }
             Log.Information("App is installed");
 
             MigrateOldFiles();
             
             CoreModUtils.Instance.PackageId = Config.AppId;
-            await Task.WhenAll(CoreModUtils.Instance.RefreshCoreMods(), DownloadMirrorUtil.Instance.Refresh());
             await InstallManager.LoadInstalledApp();
+            await Task.WhenAll(CoreModUtils.Instance.RefreshCoreMods(), DownloadMirrorUtil.Instance.Refresh());
             if (InstallManager.InstalledApp!.ModLoader == ModLoader.Scotland2)
             {
                 await PatchingManager.SaveScotland2(false); // Make sure that Scotland2 is saved to the right location

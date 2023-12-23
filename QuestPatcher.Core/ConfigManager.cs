@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using QuestPatcher.Core.Models;
+using QuestPatcher.Core.Utils;
 using Serilog;
 
 namespace QuestPatcher.Core
@@ -46,6 +47,7 @@ namespace QuestPatcher.Core
                     SaveDefaultConfig(false);
                     _loadedConfig = LoadConfig();
                     _loadedConfig.UseMirrorDownload = false; // force not using mirror
+                    _loadedConfig.AppId = CoreModUtils.BeatSaberPackageID; // force beat saber
                 }
                 catch (Exception ex)
                 {
