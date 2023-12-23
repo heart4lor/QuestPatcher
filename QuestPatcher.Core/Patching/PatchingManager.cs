@@ -502,7 +502,7 @@ namespace QuestPatcher.Core.Patching
             using var tagStream = new MemoryStream();
 
             string modloaderName = _config.PatchingOptions.ModLoader == ModLoader.QuestLoader ? "QuestLoader" : "Scotland2";
-            var tag = new ModdedTag("QuestPatcher", VersionUtil.QuestPatcherVersion.ToString(), modloaderName, null);
+            var tag = new ModdedTag("QuestPatcherCN", VersionUtil.QuestPatcherVersion.ToString(), modloaderName, null);
             JsonSerializer.Serialize(tagStream, tag, InstallManager.TagSerializerOptions);
             tagStream.Position = 0;
 
