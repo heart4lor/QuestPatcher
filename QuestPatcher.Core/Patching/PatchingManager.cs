@@ -641,7 +641,7 @@ namespace QuestPatcher.Core.Patching
 
             Log.Information("Installing the modded APK . . .");
             PatchingStage = PatchingStage.InstallingModded;
-            await _debugBridge.InstallApp(_patchedApkPath, _config.UseNewApkInstallMethod);
+            await _debugBridge.InstallApp(_patchedApkPath);
 
             if (backupPath != null)
             {

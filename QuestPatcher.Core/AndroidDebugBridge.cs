@@ -397,23 +397,13 @@ namespace QuestPatcher.Core
             await RunShellCommand($"am start {appId}/com.unity3d.player.UnityPlayerActivity");
         }
 
-        public async Task InstallApp(string apkPath, bool noStreaming = true)
+        public async Task InstallApp(string apkPath)
         {
+            string pushPath = $"/data/local/tmp/{Guid.NewGuid()}.apk";
             
-            // string pushPath = $"/data/local/tmp/{Guid.NewGuid()}.apk";
-            //
-            // await RunCommand($"push {apkPath.EscapeProc()} {pushPath}");
-            // await RunShellCommand($"pm install {pushPath}");
-            // await RunShellCommand($"rm {pushPath}");
-            
-            if (noStreaming)
-            {
-                await RunCommand($"install {apkPath.EscapeProc()} --no-streaming");
-            }
-            else
-            {
-                await RunCommand($"install {apkPath.EscapeProc()}");
-            }
+            await RunCommand($"push {apkPath.EscapeProc()} {pushPath}");
+            await RunShellCommand($"pm install {pushPath}");
+            await RunShellCommand($"rm {pushPath}");
         }
 
         public async Task CreateDirectory(string path)

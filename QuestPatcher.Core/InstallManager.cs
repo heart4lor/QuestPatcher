@@ -241,7 +241,7 @@ namespace QuestPatcher.Core
         
         public async Task InstallApp(string path)
         {
-            await _debugBridge.InstallApp(path, _config.UseNewApkInstallMethod);
+            await _debugBridge.InstallApp(path);
         }
 
         private void NotifyPropertyChanged([CallerMemberName] string propertyName = "")

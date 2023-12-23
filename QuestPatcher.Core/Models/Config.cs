@@ -68,9 +68,6 @@ namespace QuestPatcher.Core.Models
             }
         }
         private bool _showPatchingOptions;
-        
-        [DefaultValue(false)]
-        public bool UseNewApkInstallMethod { get; set; }
 
         [DefaultValue(true)]
         public bool UseMirrorDownload { get; set; } = true;
