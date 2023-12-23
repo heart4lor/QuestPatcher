@@ -739,13 +739,12 @@ namespace QuestPatcher
             {
                 DialogBuilder builder = new()
                 {
-                    //TODO translate
-                    Title = "Wrong Mod Loader",
-                    Text = $"The mod you are trying to install needs the modloader {mod.ModLoader}, however your app has the modloader {_installManager.InstalledApp?.ModLoader} installed."
-                    + "\nWould you like to repatch your app with the required modloader?"
+                    Title = "Mod注入器不匹配",
+                    Text = $"您正在安装的Mod需要 {mod.ModLoader} 注入器，但您的游戏是使用 {_installManager.InstalledApp?.ModLoader} 打的补丁。"
+                    + "\n您想使用所需的Mod注入器重新打补丁吗?"
                 };
-                builder.OkButton.Text = "Repatch";
-                builder.CancelButton.Text = "Not now";
+                builder.OkButton.Text = "重打补丁";
+                builder.CancelButton.Text = "不是现在";
                 if (await builder.OpenDialogue(_mainWindow))
                 {
                     _uiService.OpenRepatchMenu(mod.ModLoader);

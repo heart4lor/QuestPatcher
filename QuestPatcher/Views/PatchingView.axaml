@@ -19,7 +19,7 @@
                   <ToggleSwitch IsChecked="{Binding Config.PatchingOptions.Debuggable}">允许调试</ToggleSwitch>
                   <ToggleSwitch IsChecked="{Binding Config.PatchingOptions.FlatScreenSupport}">禁用VR要求</ToggleSwitch>
                   <ToggleSwitch IsChecked="{Binding Config.PatchingOptions.Microphone}">启用麦克风</ToggleSwitch>
-                  <ToggleSwitch IsChecked="{Binding Config.PatchingOptions.OpenXR}">Enable OpenXR</ToggleSwitch>
+                  <ToggleSwitch IsChecked="{Binding Config.PatchingOptions.OpenXR}">启用OpenXR</ToggleSwitch>
 
                   <StackPanel Orientation="Vertical" Spacing="10">
                       <TextBlock>手部追踪类型</TextBlock>
@@ -35,12 +35,12 @@
           <Panel Margin="0 10 0 0" Background="{DynamicResource PatchingOptionsBackground}">
             <StackPanel Orientation="Vertical" Spacing="10" IsVisible="{Binding Config.ShowPatchingOptions}" Margin="10">
               <StackPanel Orientation="Horizontal" Spacing="5">
-                <TextBlock>Custom Splash Screen:</TextBlock>
+                <TextBlock>自定义启动画面:</TextBlock>
               </StackPanel>
               <StackPanel Orientation="Horizontal" Spacing="5">
-                <Button Command="{Binding SelectSplashPath}">Browse</Button>
+                <Button Command="{Binding SelectSplashPath}">选择</Button>
                 <TextBlock Text="{Binding CustomSplashPath}" IsVisible="{Binding CustomSplashPath, Converter={x:Static ObjectConverters.IsNotNull}}>" VerticalAlignment="Center"/>
-                <TextBlock Text="None Selected" IsVisible="{Binding CustomSplashPath, Converter={x:Static ObjectConverters.IsNull}}>" VerticalAlignment="Center" />
+                <TextBlock Text="未选择" IsVisible="{Binding CustomSplashPath, Converter={x:Static ObjectConverters.IsNull}}>" VerticalAlignment="Center" />
               </StackPanel>
             </StackPanel>
           </Panel>

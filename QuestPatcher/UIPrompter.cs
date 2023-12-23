@@ -243,9 +243,9 @@ namespace QuestPatcher
         {
             DialogBuilder builder = new()
             {
-                Title = "检测到了位置Mod注入器",
-                //TODO: translate
-                Text = "The app you're attempting to patch contains a modloader that QuestPatcher doesn't recognise. QuestPatcher can attempt to replace this modloader with the one you have selected, but this may lead to a non-functional APK."
+                Title = "检测到了未知的Mod注入器",
+                Text = "您尝试打补丁的应用包含了一个 QuestPatcher 无法识别的Mod注入器。" + 
+                "QuestPatcher 会尝试将已有的注入器替换为你选择的，但是这可能会导致最终的文件无法正常运行。"
             };
             builder.OkButton.Text = "仍然继续";
 

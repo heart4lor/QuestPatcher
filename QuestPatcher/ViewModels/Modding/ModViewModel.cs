@@ -119,9 +119,8 @@ namespace QuestPatcher.ViewModels.Modding
             {
                 DialogBuilder builder = new()
                 {
-                    //TODO translate
-                    Title = "Wrong Mod Loader",
-                    Text = $"The mod you are trying to install needs the modloader {Mod.ModLoader}, however your app has the modloader {_installManager.InstalledApp.ModLoader} installed.",
+                    Title = "Mod注入器不匹配",
+                    Text = $"您正在安装的Mod需要 {Mod.ModLoader} 注入器，但您的游戏是使用 {_installManager.InstalledApp.ModLoader} 打的补丁。",
                     HideCancelButton = true
                 };
 

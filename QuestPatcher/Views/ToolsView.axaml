@@ -34,9 +34,8 @@
           <TextBlock VerticalAlignment="Center" FontSize="12">可用于解决Mod出现兼容问题等原因导致的游戏闪退无法打开。把Mod删干净，重新装Mod。</TextBlock>
         </StackPanel>
         <StackPanel Orientation="Horizontal" Spacing="10">
-          <!--TODO translate-->
-          <Button Command="{Binding RestartApp}" IsEnabled="{Binding Locker.IsFree}">Restart App</Button>
-          <TextBlock VerticalAlignment="Center" FontSize="12">Closes then reopens the selected app.</TextBlock>
+          <Button Command="{Binding RestartApp}" IsEnabled="{Binding Locker.IsFree}">重启游戏</Button>
+          <TextBlock VerticalAlignment="Center" FontSize="12">强制终止并重启游戏</TextBlock>
         </StackPanel>
         <StackPanel Orientation="Horizontal" Spacing="10">
           <Button Command="{Binding OpenLogsFolder}">打开日志文件夹</Button>
@@ -59,9 +58,8 @@
           <TextBlock VerticalAlignment="Center" FontSize="12">清除缓存的数据：如果出现了问题可以试试这个</TextBlock>
         </StackPanel>
         <StackPanel Orientation="Horizontal" Spacing="10">
-          <!--TODO translate-->
-          <Button Command="{Binding RepatchApp}" IsEnabled="{Binding Locker.IsFree}">Repatch App</Button>
-          <TextBlock VerticalAlignment="Center" FontSize="12">Allows you to change the modloader you have installed by re-patching your app.</TextBlock>
+          <Button Command="{Binding RepatchApp}" IsEnabled="{Binding Locker.IsFree}">重新打补丁</Button>
+          <TextBlock VerticalAlignment="Center" FontSize="12">通过给应用重新打补丁来更换Mod注入器</TextBlock>
         </StackPanel>
       </StackPanel>
       <StackPanel  Margin="0 20 0 0" Spacing="10">
