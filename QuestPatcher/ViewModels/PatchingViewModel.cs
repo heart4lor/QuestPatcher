@@ -65,7 +65,7 @@ namespace QuestPatcher.ViewModels
                 };
                 
                 builder.OkButton.Text = "仍然继续";
-                if (await builder.OpenDialogue(_mainWindow))
+                if (!await builder.OpenDialogue(_mainWindow))
                 {
                     return;
                 }
