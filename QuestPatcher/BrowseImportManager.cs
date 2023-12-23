@@ -15,7 +15,6 @@ using QuestPatcher.Core.Utils;
 using QuestPatcher.Models;
 using QuestPatcher.Services;
 using QuestPatcher.Utils;
-using QuestPatcher.Views;
 using Serilog;
 using Version = SemanticVersioning.Version;
 
@@ -276,7 +275,7 @@ namespace QuestPatcher
         }
 
         /// <summary>
-        /// Attempts to download and import a file.
+        /// Attempts to download and import a file from a HTTP(S) server.
         /// </summary>
         /// <param name="uri">The URI to download the file from.</param>
         public async Task AttemptImportUri(Uri uri)
@@ -313,7 +312,10 @@ namespace QuestPatcher
             }
 
             // Get the file name/extension from the headers
-            string? extension = Path.GetExtension(headers.ContentDisposition?.FileName);
+            string? extension = Path.GetExtension(headers.ContentDisposition?.FileName?
+                // Due to a bug in dotnet, quotes are added at both ends of the filename, so remove these to avoid a mangled file extension.
+                .TrimStart('\"')
+                .TrimEnd('\"'));
             if (extension == null)
             {
                 var builder = new DialogBuilder

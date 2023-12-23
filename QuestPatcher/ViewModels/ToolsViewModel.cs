@@ -8,7 +8,6 @@ using QuestPatcher.Core.Modding;
 using QuestPatcher.Core.Models;
 using QuestPatcher.Models;
 using QuestPatcher.Services;
-using QuestPatcher.Views;
 using ReactiveUI;
 using Serilog;
 

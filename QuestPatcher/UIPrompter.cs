@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Net.Http;
 using System.Text.Json.Nodes;
@@ -7,6 +8,7 @@ using Avalonia.Controls;
 using QuestPatcher.Core;
 using QuestPatcher.Core.Models;
 using QuestPatcher.Services;
+using QuestPatcher.ViewModels;
 using QuestPatcher.Views;
 using QuestPatcher.Utils;
 using SemVer = SemanticVersioning.Version;
@@ -177,30 +179,6 @@ namespace QuestPatcher
                     builder.Title = "设备离线";
                     builder.Text = "已检测到您的 Quest 处于离线状态。\n请尝试重新启动您的 Quest 和您的电脑";
                     break;
-                case DisconnectionType.MultipleDevices:
-                    builder.Title = "插入了多个设备";
-                    builder.Text = "多台 Android 设备已连接到你的电脑。\n请拔掉除 Quest 以外的所有设备（并关闭 BlueStacks 等模拟器）";
-                    // builder.WithButtons(
-                    //     new ButtonInfo
-                    //     {
-                    //         Text = "快速修复·断开所有设备的连接",
-                    //         CloseDialogue = false,
-                    //         OnClick = async () =>
-                    //         {
-                    //             //TODO Sky: device prioritization from upstream
-                    //             await _uiService!.MicroQuickFix("adb_kill_server");
-                    //             var builder2 = new DialogBuilder
-                    //             {
-                    //                 Title = "已经断开所有安卓设备的连接",
-                    //                 Text = "请先重新连接你的Quest，然后重启QuestPatcher",
-                    //                 HideCancelButton = true,
-                    //                 HideOkButton = true
-                    //             };
-                    //             await builder2.OpenDialogue(_mainWindow);
-                    //         }
-                    //     }
-                    // );
-                    break;
                 case DisconnectionType.Unauthorized:
                     builder.Title = "设备未经授权";
                     builder.Text = "请在头显中允许此PC的连接（即使您之前已为 SideQuest 执行过此操作）";
@@ -265,6 +243,21 @@ namespace QuestPatcher
             };
 
             return builder.OpenDialogue(_mainWindow);
+        }
+
+        public async Task<AdbDevice?> PromptSelectDevice(List<AdbDevice> devices)
+        {
+            var viewModel = new SelectDeviceWindowViewModel(devices);
+            var window = new SelectDeviceWindow
+            {
+                DataContext = viewModel,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner
+            };
+
+            viewModel.DeviceSelected += (_, device) => window.Close();
+            await window.ShowDialog(_mainWindow!);
+
+            return viewModel.SelectedDevice;
         }
     }
 }

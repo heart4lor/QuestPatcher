@@ -6,7 +6,6 @@ using Avalonia.Media.Imaging;
 using QuestPatcher.Core;
 using QuestPatcher.Core.Modding;
 using QuestPatcher.Models;
-using QuestPatcher.Views;
 using ReactiveUI;
 
 namespace QuestPatcher.ViewModels.Modding
@@ -73,8 +72,12 @@ namespace QuestPatcher.ViewModels.Modding
         {
             try
             {
-                CoverImage = new Bitmap(await Mod.OpenCover());
-                this.RaisePropertyChanged(nameof(CoverImage));
+                using var coverStream = await Mod.OpenCover();
+                if (coverStream != null)
+                {
+                    CoverImage = new Bitmap(coverStream);
+                    this.RaisePropertyChanged(nameof(CoverImage));
+                }
             }
             catch (Exception)
             {
