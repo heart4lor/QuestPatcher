@@ -363,8 +363,6 @@ namespace QuestPatcher.Zip
             long dataOffset = _stream.Position;
 
             // Copy the data into the entry, calculating the Crc32 at the same time.
-            // TODO: Could align files using STORE to 4 bytes like zipalign does
-            // However, this is likely unnecessary, as this is only important for large (e.g. media) files to allow them to be read with mmap.
             Stream? compressor = null;
             uint crc32;
             CompressionMethod compressionMethod;
@@ -496,7 +494,7 @@ namespace QuestPatcher.Zip
         /// </summary>
         /// <param name="postLocalHeader">The offset of the first byte after the local header</param>
         /// <returns>An extra field that will align the entry, or null if <paramref name="postLocalHeader"/> is already correctly aligned.</returns>
-        public byte[]? CreateAlignmentField(long postLocalHeader)
+        private byte[]? CreateAlignmentField(long postLocalHeader)
         {
             int offset = (int) postLocalHeader % StoreAlign;
             if (offset == 0)
@@ -523,7 +521,7 @@ namespace QuestPatcher.Zip
             }
 
             byte[] field = fieldMs.ToArray();
-            Debug.Assert((postLocalHeader + field.Length) % StoreAlign != 0);
+            Debug.Assert((postLocalHeader + field.Length) % StoreAlign == 0);
 
             return fieldMs.ToArray();
         }
