@@ -7,9 +7,9 @@
              x:Class="QuestPatcher.Views.LoadedView"
              DragDrop.AllowDrop="True">
   <Design.DataContext>
-    <viewModels:LoadedViewModel />
+    <viewModels:LoadedViewModel />  
   </Design.DataContext>
-
+  
   <Panel>
     <DockPanel HorizontalAlignment="Stretch">
       <ExperimentalAcrylicBorder DockPanel.Dock="Left" Width="240" Material="{DynamicResource MainBackgroundMaterial}">
@@ -21,19 +21,17 @@
           <!--            TextTrimming="CharacterEllipsis" /> -->
         </StackPanel>
       </ExperimentalAcrylicBorder>
-
-      <ExperimentalAcrylicBorder IsHitTestVisible="False"
-                                 Material="{DynamicResource SelectedSectionBackgroundMaterial}">
-        <TextBlock Text="{Binding #TabControl.SelectedItem.Header}" Margin="40 20" FontSize="32" FontWeight="Light" />
+        
+      <ExperimentalAcrylicBorder IsHitTestVisible="False" Material="{DynamicResource SelectedSectionBackgroundMaterial}">
+          <TextBlock Text="{Binding #TabControl.SelectedItem.Header}" Margin="40 20" FontSize="32" FontWeight="Light" />
       </ExperimentalAcrylicBorder>
     </DockPanel>
-
+    
     <TabControl Classes="sidebar">
-      <TabItem Header="打补丁" IsVisible="{Binding !AppInfo.IsModded}" IsSelected="{Binding !AppInfo.IsModded}">
+      <TabItem Header="打补丁" IsVisible="{Binding NeedsPatchingView}" IsSelected="{Binding !AppInfo.IsModded}">
         <UserControl Content="{Binding PatchingView}" />
       </TabItem>
-      <TabItem Header="管理Mod" IsVisible="{Binding AppInfo.IsModded}" IsSelected="{Binding AppInfo.IsModded}"
-               ScrollViewer.VerticalScrollBarVisibility="Disabled">
+      <TabItem Header="管理Mod" IsVisible="{Binding AppInfo.IsModded}" IsSelected="{Binding AppInfo.IsModded}" ScrollViewer.VerticalScrollBarVisibility="Disabled">
         <UserControl Content="{Binding ManageModsView}" />
       </TabItem>
       <TabItem Header="杂项" IsVisible="{Binding AppInfo.IsModded}" ScrollViewer.VerticalScrollBarVisibility="Disabled">
@@ -111,10 +109,8 @@
 
       </TabItem>
     </TabControl>
-
+    
     <StackPanel Margin="25" VerticalAlignment="Bottom" HorizontalAlignment="Left" Spacing="30">
-
-
       <ToggleSwitch IsChecked="{Binding Config.DisplayLogs}" OffContent="隐藏" OnContent="显示">显示日志</ToggleSwitch>
       <StackPanel>
         <TextBlock Text="{Binding QPVersion, StringFormat=QP版本: {0}}" FontWeight="Light" FontSize="12" />

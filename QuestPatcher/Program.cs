@@ -1,7 +1,6 @@
+﻿using System;
 using Avalonia;
 using Avalonia.ReactiveUI;
-using System;
-using System.Threading;
 
 namespace QuestPatcher
 {
@@ -21,6 +20,7 @@ namespace QuestPatcher
             => AppBuilder.Configure<App>()
                 .UsePlatformDetect()
                 .LogToTrace()
-                .UseReactiveUI();
+                .UseReactiveUI()
+                .WithInterFont();
     }
 }

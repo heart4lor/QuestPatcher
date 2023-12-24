@@ -14,7 +14,14 @@ namespace QuestPatcher.Core
         /// </summary>
         public string DataFolder { get; }
 
+        /// <summary>
+        /// QuestPatcher and ADB logs
+        /// </summary>
         public string LogsFolder { get; }
+
+        /// <summary>
+        /// Tools needed for QP to work, e.g. ADB, QuestLoader.
+        /// </summary>
 
         public string ToolsFolder { get; }
 
@@ -30,54 +37,39 @@ namespace QuestPatcher.Core
         public string PatchingFolder { get; }
 
         /// <summary>
-        /// Folder where files are temporarily stored to load as mods or upload/download to the quest.
-        /// </summary>
-        public string StagingArea { get; }
-
-        private ulong _currentStagingNumber = 0;
-        
-        /// <summary>
-        /// Creates and sets all special folders
+        /// Sets all the special folder paths.
         /// </summary>
         public SpecialFolders()
         {
             // Make sure to create the AppData folder if it does not exist
             string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData, Environment.SpecialFolderOption.Create);
-            
+
             DataFolder = Path.Combine(appDataPath, "QuestPatcher");
-            Directory.CreateDirectory(DataFolder);
-
             LogsFolder = Path.Combine(DataFolder, "logs");
-            Directory.CreateDirectory(LogsFolder);
-
             ToolsFolder = Path.Combine(DataFolder, "tools");
-            Directory.CreateDirectory(ToolsFolder);
 
             TempFolder = Path.Combine(Path.GetTempPath(), "QuestPatcher");
             PatchingFolder = Path.Combine(TempFolder, "patching");
-            StagingArea = Path.Combine(TempFolder, "stagingArea");
-            
             PatchingFolder = Path.Combine(TempFolder, "patching");
-            StagingArea = Path.Combine(TempFolder, "stagingArea");
-            
-            if(Directory.Exists(TempFolder)) // Sometimes windows fails to delete this upon closing, and we have to do it ourselves
+        }
+
+        /// <summary>
+        /// Creates all special folders.
+        /// Deletes the temporary directory and recreates if it already exists.
+        /// </summary>
+        public void CreateAndDeleteTemp()
+        {
+            Directory.CreateDirectory(DataFolder);
+            Directory.CreateDirectory(LogsFolder);
+            Directory.CreateDirectory(ToolsFolder);
+
+            // This may not be deleted if QP crashed, so we do it just to make sure.
+            if (Directory.Exists(TempFolder))
             {
                 Directory.Delete(TempFolder, true);
             }
             Directory.CreateDirectory(TempFolder);
             Directory.CreateDirectory(PatchingFolder);
-            Directory.CreateDirectory(StagingArea);
-        }
-        
-        /// <summary>
-        /// Finds a path to write a file to before using ADB to push it
-        /// </summary>
-        /// <returns>A wrapper around a file to write to</returns>
-        public TempFile GetTempFile()
-        {
-            string path = Path.Combine(StagingArea, $"{_currentStagingNumber}.temp");
-            _currentStagingNumber++;
-            return new TempFile(path);
         }
     }
 }

@@ -1,5 +1,4 @@
-using Avalonia;
-using Avalonia.Controls;
+﻿using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 
 namespace QuestPatcher.Views
@@ -17,14 +16,14 @@ namespace QuestPatcher.Views
         {
             AvaloniaXamlLoader.Load(this);
 
-            _loggingBox = this.FindControl<TextBox>("LoggingBox");
+            _loggingBox = this.FindControl<TextBox>("LoggingBox")!;
             // Scroll the logging box to the bottom whenever new text is added
             _loggingBox.PropertyChanged += (_, args) =>
             {
                 if (args.Property.Name == nameof(_loggingBox.Text))
                 {
                     _loggingBox.CaretIndex = int.MaxValue;
-                } 
+                }
             };
         }
     }

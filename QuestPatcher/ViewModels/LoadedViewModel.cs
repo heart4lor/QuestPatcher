@@ -1,18 +1,13 @@
 ﻿using System;
-using System.Diagnostics;
-using ReactiveUI;
-using QuestPatcher.ViewModels.Modding;
-using QuestPatcher.Core.Models;
-using QuestPatcher.Core.Patching;
-using Avalonia.Input;
 using System.Collections.Generic;
-using System.Runtime.InteropServices;
-using Serilog.Core;
+using System.Diagnostics;
 using System.Linq;
-using QuestPatcher.Views;
-using System.Net;
+using Avalonia.Input;
 using QuestPatcher.Core;
+using QuestPatcher.Core.Models;
 using QuestPatcher.Utils;
+using QuestPatcher.ViewModels.Modding;
+using ReactiveUI;
 using Serilog;
 
 #pragma warning disable CA1822
@@ -63,7 +58,7 @@ namespace QuestPatcher.ViewModels
         {
             get
             {
-                DateTime now = DateTime.Now;
+                var now = DateTime.Now;
                 bool isAprilFools = now.Month == 4 && now.Day == 1;
                 return isAprilFools ? "QuestCorrupter" : "QuestPatcher";
             }
@@ -76,17 +71,19 @@ namespace QuestPatcher.ViewModels
         {
             get
             {
-                Debug.Assert(_patchingManager.InstalledApp != null);
-                return _patchingManager.InstalledApp;
+                Debug.Assert(_installManager.InstalledApp != null);
+                return _installManager.InstalledApp;
             }
         }
-
+        
         public string QPVersion => VersionUtil.QuestPatcherVersion.ToString();
 
-        private readonly PatchingManager _patchingManager;
+        public bool NeedsPatchingView => PatchingView.IsPatchingInProgress || !AppInfo.IsModded;
+
+        private readonly InstallManager _installManager;
         private readonly BrowseImportManager _browseManager;
 
-        public LoadedViewModel(PatchingViewModel patchingView, ManageModsViewModel manageModsView, LoggingViewModel loggingView, ToolsViewModel toolsView, OtherItemsViewModel otherItemsView, Config config, PatchingManager patchingManager, BrowseImportManager browseManager)
+        public LoadedViewModel(PatchingViewModel patchingView, ManageModsViewModel manageModsView, LoggingViewModel loggingView, ToolsViewModel toolsView, OtherItemsViewModel otherItemsView, Config config, InstallManager installManager, BrowseImportManager browseManager)
         {
             PatchingView = patchingView;
             LoggingView = loggingView;
@@ -95,16 +92,33 @@ namespace QuestPatcher.ViewModels
             OtherItemsView = otherItemsView;
 
             Config = config;
-            _patchingManager = patchingManager;
+            _installManager = installManager;
             _browseManager = browseManager;
 
-            _patchingManager.PropertyChanged += (_, args) =>
+            _installManager.PropertyChanged += (_, args) =>
             {
-                if(args.PropertyName == nameof(_patchingManager.InstalledApp) && _patchingManager.InstalledApp != null)
+                if (args.PropertyName == nameof(_installManager.InstalledApp) && _installManager.InstalledApp != null)
                 {
                     this.RaisePropertyChanged(nameof(AppInfo));
+                    this.RaisePropertyChanged(nameof(NeedsPatchingView));
                     this.RaisePropertyChanged(nameof(SelectedAppText));
                 }
+            };
+
+            patchingView.PropertyChanged += (_, args) =>
+            {
+                if (args.PropertyName == nameof(PatchingView.IsPatchingInProgress))
+                {
+                    this.RaisePropertyChanged(nameof(NeedsPatchingView));
+                }
+            };
+        }
+
+        private FileImportInfo GetImportInfoForUri(Uri fileUri)
+        {
+            return new FileImportInfo(fileUri.LocalPath) // No need to escape: using local path
+            {
+                PreferredCopyType = OtherItemsView.SelectedFileCopy,
             };
         }
 
@@ -116,19 +130,39 @@ namespace QuestPatcher.ViewModels
             // We need to handle this to avoid crashing QuestPatcher.
             try
             {
-                IEnumerable<string>? fileNames = args.Data.GetFileNames();
-                if (fileNames == null) // Non-file items dragged
-                {
-                    Log.Debug("Drag and drop contained no file names");
-                    return;
-                }
+                var filesToImport = new List<string>();
 
-                Log.Debug("Files found in drag and drop. Processing . . .");
-                await _browseManager.AttemptImportFiles(fileNames.ToList(), OtherItemsView.SelectedFileCopy);
+                string? text = args.Data.GetText();
+                if (text != null)
+                {
+                    var creationOptions = new UriCreationOptions();
+                    if (Uri.TryCreate(text, in creationOptions, out var uri))
+                    {
+                        string scheme = uri.Scheme.ToLower();
+
+                        if (scheme == "file")
+                        {
+                            await _browseManager.AttemptImportFiles(new FileImportInfo[] { GetImportInfoForUri(uri) });
+                        }
+                        else if (uri.Scheme == "http" || uri.Scheme == "https")
+                        {
+                            await _browseManager.AttemptImportUri(uri);
+                        }
+                    }
+                }
+                else
+                {
+                    var files = args.Data.GetFiles();
+                    if (files != null)
+                    {
+                        Log.Debug("Files found in drag and drop. Processing . . .");
+                        await _browseManager.AttemptImportFiles(files.Select(file => GetImportInfoForUri(file.Path)).ToList());
+                    }
+                }
             }
-            catch (COMException)
+            catch (Exception ex)
             {
-                Log.Error("Failed to parse dragged items");
+                Log.Error(ex, "Failed to parse dragged items");
             }
         }
     }

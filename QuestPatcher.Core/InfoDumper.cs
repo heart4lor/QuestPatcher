@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -8,7 +7,6 @@ using QuestPatcher.Core.Modding;
 using QuestPatcher.Core.Models;
 using QuestPatcher.Core.Patching;
 using Serilog;
-using Serilog.Core;
 
 namespace QuestPatcher.Core
 {
@@ -22,7 +20,7 @@ namespace QuestPatcher.Core
         private readonly ModManager _modManager;
         private readonly ConfigManager _configManager;
         private readonly Config _config;
-        private readonly PatchingManager _patchingManager;
+        private readonly InstallManager _installManager;
 
         private const string LogsDirectory = "logs";
         private string GameLogsDirectory => $"logs/{_config.AppId}";
@@ -30,16 +28,16 @@ namespace QuestPatcher.Core
         private string GameConfigsPath => $"/sdcard/ModData/{_config.AppId}/Configs/";
         private string GameConfigsDirectory => $"configs/{_config.AppId}";
 
-        public InfoDumper(SpecialFolders specialFolders, AndroidDebugBridge debugBridge, ModManager modManager, ConfigManager configManager, PatchingManager patchingManager)
+        public InfoDumper(SpecialFolders specialFolders, AndroidDebugBridge debugBridge, ModManager modManager, ConfigManager configManager, InstallManager installManager)
         {
             _specialFolders = specialFolders;
             _debugBridge = debugBridge;
             _modManager = modManager;
             _configManager = configManager;
             _config = configManager.GetOrLoadConfig();
-            _patchingManager = patchingManager;
+            _installManager = installManager;
         }
-        
+
         /// <summary>
         /// Creates a dump ZIP containing lots of information about the current state of QuestPatcher.
         /// e.g. installed mods, config file, logs, ADB logs
@@ -49,7 +47,7 @@ namespace QuestPatcher.Core
         public async Task<string> CreateInfoDump(string? overrideLocation = null)
         {
             string location = overrideLocation ?? Path.Combine(_specialFolders.DataFolder, "infoDump.zip");
-            Log.Information($"Starting dump at {location} . . .");
+            Log.Information("Starting dump at {DumpLocation} . . .", location);
 
             if (File.Exists(location))
             {
@@ -57,24 +55,24 @@ namespace QuestPatcher.Core
                 File.Delete(location);
             }
 
-            await using FileStream stream = File.Open(location, FileMode.Create);
+            await using var stream = File.Open(location, FileMode.Create);
             using ZipArchive dumpArchive = new(stream, ZipArchiveMode.Update);
 
             try { await SaveQuestPatcherLogs(dumpArchive); }
-            catch (Exception ex) { Log.Warning($"Failed to save QuestPatcher logs to dump: {ex}"); }
+            catch (Exception ex) { Log.Warning(ex, "Failed to save QuestPatcher logs to dump"); }
 
             try { await SaveModLogs(dumpArchive); }
-            catch (Exception ex) { Log.Warning($"Failed to save mod logs to dump: {ex}"); }
-            
+            catch (Exception ex) { Log.Warning(ex, "Failed to save mod logs to dump"); }
+
             try { await SaveConfig(dumpArchive); }
-            catch (Exception ex) { Log.Warning($"Failed to save config to dump: {ex}"); }
-            
+            catch (Exception ex) { Log.Warning(ex, "Failed to save config to dump"); }
+
             try { await SaveModConfigs(dumpArchive); }
-            catch (Exception ex) { Log.Warning($"Failed to save mod configs to dump: {ex}"); }
-            
+            catch (Exception ex) { Log.Warning(ex, "Failed to save mod configs to dump"); }
+
             try { await SaveInfoFile(dumpArchive); }
-            catch (Exception ex) { Log.Warning($"Failed to save information file to dump: {ex}"); }
-            
+            catch (Exception ex) { Log.Warning(ex, "Failed to save information file to dump"); }
+
             Log.Information("Dump complete!");
 
             return location;
@@ -85,7 +83,7 @@ namespace QuestPatcher.Core
             if (File.Exists(sourcePath))
             {
                 string logName = overrideLogName ?? Path.GetFileName(sourcePath);
-                Log.Information($"Saving log {logName} . . .");
+                Log.Information("Saving log {LogName} . . .", logName);
                 await dump.AddFileAsync(sourcePath, Path.Combine(logsFolder, logName));
             }
         }
@@ -97,41 +95,43 @@ namespace QuestPatcher.Core
         private async Task SaveModLogs(ZipArchive dump)
         {
             string gameLogsPath = $"/sdcard/Android/data/{_config.AppId}/files/logs";
-            Log.Information($"Saving mod logs from {gameLogsPath} . . .");
+            Log.Information("Saving mod logs from {GameLogsPath} . . .", gameLogsPath);
 
             foreach (string logPath in await _debugBridge.ListDirectoryFiles(gameLogsPath))
             {
                 try
                 {
-                    using TempFile tempPath = _specialFolders.GetTempFile();
-                    Log.Information($"Downloading {logPath} to {tempPath} . . .");
-                    await _debugBridge.DownloadFile(logPath, tempPath.Path);
-                    await CreateLogEntry(dump, tempPath.Path, GameLogsDirectory, Path.GetFileName(logPath));
+                    using var tempFile = new TempFile();
+                    Log.Information("Downloading {LogPath} to {TempPath} . . .", logPath, tempFile);
+                    await _debugBridge.DownloadFile(logPath, tempFile.Path);
+                    await CreateLogEntry(dump, tempFile.Path, GameLogsDirectory, Path.GetFileName(logPath));
                 }
-                catch(Exception ex)
+                catch (Exception ex)
                 {
-                    Log.Warning($"Failed to download log {logPath}: {ex}");
+                    Log.Warning(ex, "Failed to download log {LogPath}", logPath);
                 }
             }
         }
 
         private async Task SaveModConfigs(ZipArchive dump)
         {
-            Log.Information($"Saving configs in {GameConfigsPath} . . .");
+            Log.Information("Saving configs in {GameConfigsPath} . . .", GameConfigsPath);
             foreach (string configPath in await _debugBridge.ListDirectoryFiles(GameConfigsPath))
             {
                 try
                 {
-                    using TempFile tempPath = _specialFolders.GetTempFile();
-                    Log.Information($"Downloading {configPath} to {tempPath} . . .");
+                    using var tempPath = new TempFile();
+                    Log.Information("Downloading {ConfigPath} to {TempPath} . . .", configPath, tempPath);
                     await _debugBridge.DownloadFile(configPath, tempPath.Path);
                     await dump.AddFileAsync(tempPath.Path, Path.Combine(GameConfigsDirectory, Path.GetFileName(configPath)));
-                } catch (Exception ex) { 
-                    Log.Warning($"Failed to download config {configPath}: {ex}");
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning(ex, "Failed to download config {ConfigPath}", configPath);
                 }
             }
         }
-        
+
         /// <summary>
         /// Saves QuestPatcher (and ADB) logs to the given dump.
         /// </summary>
@@ -162,55 +162,56 @@ namespace QuestPatcher.Core
         private async Task SaveInfoFile(ZipArchive dump)
         {
             Log.Information("Saving state/information file . . .");
-            ZipArchiveEntry infoEntry = dump.CreateEntry("status.txt");
-            await using Stream stream = infoEntry.Open();
+            var infoEntry = dump.CreateEntry("status.txt");
+            await using var stream = infoEntry.Open();
             await using StreamWriter writer = new(stream);
 
             await writer.WriteLineAsync("QuestPatcher Information dump");
             await writer.WriteLineAsync("=============================");
 
-            ApkInfo? app = _patchingManager.InstalledApp;
+            var app = _installManager.InstalledApp;
             if (app != null)
             {
                 await writer.WriteLineAsync(
-                    $"Application: {_config.AppId} v{app.Version}. Is Modded: {app.IsModded}. 64 bit: {app.Is64Bit}");
+                    $"Application: {_config.AppId} v{app.Version}. Modloader: {app.ModLoader}. 64 bit: {app.Is64Bit}");
             }
             else
             {
                 await writer.WriteLineAsync("Application not yet loaded");
             }
-            
+
             await writer.WriteLineAsync($"Total loaded mods: {_modManager.AllMods.Count}. {_modManager.AllMods.Count(mod => mod.IsInstalled)} Installed");
 
-            foreach (IMod mod in _modManager.AllMods)
+            foreach (var mod in _modManager.AllMods)
             {
                 string authorText = mod.Porter == null ? $"by {mod.Author}" : $"by {mod.Author} ported by {mod.Porter}";
                 await writer.WriteLineAsync($"{mod.Id} v{mod.Version} {authorText}. Installed: {mod.IsInstalled}. Is Library: {mod.IsLibrary}. Package version: {mod.PackageVersion}");
             }
-            
+
             await writer.WriteLineAsync("=============================");
 
             try
             {
-                List<string> modFiles = await _debugBridge.ListDirectoryFiles(_modManager.ModsPath);
-                List<string> libFiles = await _debugBridge.ListDirectoryFiles(_modManager.LibsPath);
-
-                await writer.WriteLineAsync($"Mod files (contents of {_modManager.ModsPath}):");
-                foreach (string str in modFiles)
-                {
-                    await writer.WriteLineAsync(Path.GetFileName(str));
-                }
-
-                await writer.WriteLineAsync($"Library files (contents of {_modManager.LibsPath}):");
-                foreach (string str in libFiles)
-                {
-                    await writer.WriteLineAsync(Path.GetFileName(str));
-                }
+                await WriteDirectoryDump(_modManager.ModsPath, "QuestLoader mod files", writer);
+                await WriteDirectoryDump(_modManager.LibsPath, "QuestLoader library files", writer);
+                await WriteDirectoryDump(_modManager.Sl2EarlyModsPath, "Scotland2 early mod files", writer);
+                await WriteDirectoryDump(_modManager.Sl2LateModsPath, "Scotland2 late mod files", writer);
+                await WriteDirectoryDump(_modManager.Sl2LibsPath, "Scotland2 library files", writer);
             }
             catch (Exception ex)
             {
                 await writer.WriteLineAsync($"Failed to load mods/libs from quest");
-                Log.Warning($"Failed to load mods/libs from quest: {ex}");
+                Log.Warning(ex, "Failed to load mods/libs from quest");
+            }
+        }
+
+        private async Task WriteDirectoryDump(string path, string name, StreamWriter writer)
+        {
+            await writer.WriteLineAsync($"{name} (contents of {path}):");
+            var files = await _debugBridge.ListDirectoryFiles(path, true);
+            foreach (string fileName in files)
+            {
+                await writer.WriteLineAsync(fileName);
             }
         }
     }

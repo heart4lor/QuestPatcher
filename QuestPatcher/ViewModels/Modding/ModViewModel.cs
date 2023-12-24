@@ -1,14 +1,12 @@
-﻿using Avalonia.Controls;
-using Avalonia.Media.Imaging;
-using ReactiveUI;
-using System;
-using System.Threading.Tasks;
-using QuestPatcher.Views;
-using QuestPatcher.Models;
-using QuestPatcher.Core.Modding;
-using QuestPatcher.Core.Patching;
+﻿using System;
 using System.Diagnostics;
+using System.Threading.Tasks;
+using Avalonia.Controls;
+using Avalonia.Media.Imaging;
 using QuestPatcher.Core;
+using QuestPatcher.Core.Modding;
+using QuestPatcher.Models;
+using ReactiveUI;
 
 namespace QuestPatcher.ViewModels.Modding
 {
@@ -43,17 +41,17 @@ namespace QuestPatcher.ViewModels.Modding
         public OperationLocker Locker { get; }
 
         private readonly ModManager _modManager;
-        private readonly PatchingManager _patchingManager;
+        private readonly InstallManager _installManager;
         private readonly Window _mainWindow;
 
         private bool _isToggling; // Used to temporarily display the mod with the new toggle value until the toggle succeeds or fails
 
-        public ModViewModel(IMod mod, ModManager modManager, PatchingManager patchingManager, Window mainWindow, OperationLocker locker)
+        public ModViewModel(IMod mod, ModManager modManager, InstallManager installManager, Window mainWindow, OperationLocker locker)
         {
             Mod = mod;
             Locker = locker;
             _modManager = modManager;
-            _patchingManager = patchingManager;
+            _installManager = installManager;
             _mainWindow = mainWindow;
 
             mod.PropertyChanged += (_, args) =>
@@ -74,10 +72,14 @@ namespace QuestPatcher.ViewModels.Modding
         {
             try
             {
-                CoverImage = new Bitmap(await Mod.OpenCover());
-                this.RaisePropertyChanged(nameof(CoverImage));
+                using var coverStream = await Mod.OpenCover();
+                if (coverStream != null)
+                {
+                    CoverImage = new Bitmap(coverStream);
+                    this.RaisePropertyChanged(nameof(CoverImage));
+                }
             }
-            catch(Exception)
+            catch (Exception)
             {
                 // ignored
             }
@@ -113,18 +115,33 @@ namespace QuestPatcher.ViewModels.Modding
         /// </summary>
         private async Task InstallSafely()
         {
-            Debug.Assert(_patchingManager.InstalledApp != null);
+            Debug.Assert(_installManager.InstalledApp != null);
+
+            // Check that the modloader matches what we have installed
+            if (Mod.ModLoader != _installManager.InstalledApp.ModLoader)
+            {
+                DialogBuilder builder = new()
+                {
+                    Title = "Mod注入器不匹配",
+                    Text = $"您正在安装的Mod需要 {Mod.ModLoader} 注入器，但您的游戏是使用 {_installManager.InstalledApp.ModLoader} 打的补丁。",
+                    HideCancelButton = true
+                };
+
+                await builder.OpenDialogue(_mainWindow);
+                return;
+            }
+
             // Check game version, and prompt if it is incorrect to avoid users installing mods that may crash their game
-            if(Mod.PackageVersion != null && Mod.PackageVersion != _patchingManager.InstalledApp.Version)
+            if (Mod.PackageVersion != null && Mod.PackageVersion != _installManager.InstalledApp.Version)
             {
                 DialogBuilder builder = new()
                 {
                     Title = "版本不匹配的Mod",
-                    Text = $"该Mod是为{Mod.PackageVersion}版本的游戏开发的，然而你当前安装的游戏版本是{_patchingManager.InstalledApp.Version}。启用这个Mod有可能会导致游戏崩溃，也有可能正常运行。"
+                    Text = $"该Mod是为{Mod.PackageVersion}版本的游戏开发的，然而你当前安装的游戏版本是{_installManager.InstalledApp.Version}。启用这个Mod有可能会导致游戏崩溃，也有可能正常运行。"
                 };
                 builder.OkButton.Text = "仍然继续";
 
-                if(!await builder.OpenDialogue(_mainWindow))
+                if (!await builder.OpenDialogue(_mainWindow))
                 {
                     return;
                 }

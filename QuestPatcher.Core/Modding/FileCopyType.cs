@@ -9,7 +9,6 @@ namespace QuestPatcher.Core.Modding
 {
     public class FileCopyType : INotifyPropertyChanged
     {
-#nullable disable
         /// <summary>
         /// Name of the file copy, singular. E.g. "gorilla tag hat"
         /// </summary>
@@ -30,8 +29,10 @@ namespace QuestPatcher.Core.Modding
         /// List of support file extensions for this file copy destination
         /// </summary>
         public List<string> SupportedExtensions { get; set; }
-#nullable enable
 
+        /// <summary>
+        /// The current files in the destination folder.
+        /// </summary>
         public ObservableCollection<string> ExistingFiles { get; } = new();
 
         /// <summary>
@@ -42,14 +43,13 @@ namespace QuestPatcher.Core.Modding
             get => _hasLoaded;
             private set
             {
-                if(_hasLoaded != value)
+                if (_hasLoaded != value)
                 {
                     _hasLoaded = value;
                     NotifyPropertyChanged();
                 }
             }
         }
-        private bool _hasLoaded;
 
         /// <summary>
         /// Whether or not the last loading attempt failed
@@ -59,32 +59,32 @@ namespace QuestPatcher.Core.Modding
             get => _loadingFailed;
             private set
             {
-                if(_loadingFailed != value)
+                if (_loadingFailed != value)
                 {
                     _loadingFailed = value;
                     NotifyPropertyChanged();
                 }
             }
         }
-        private bool _loadingFailed;
 
         public event PropertyChangedEventHandler? PropertyChanged;
 
         private readonly AndroidDebugBridge _debugBridge;
+        private bool _hasLoaded;
+        private bool _loadingFailed;
 
 
-        public FileCopyType(AndroidDebugBridge debugBridge)
+        public FileCopyType(AndroidDebugBridge debugBridge, FileCopyInfo info)
         {
             _debugBridge = debugBridge;
-        }
-
-        private void NotifyPropertyChanged([CallerMemberName] string propertyName = "")
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+            NameSingular = info.NameSingular;
+            NamePlural = info.NamePlural;
+            Path = info.Path;
+            SupportedExtensions = info.SupportedExtensions;
         }
 
         /// <summary>
-        /// Loads the contents of this destination, replacing the old contents.
+        /// Loads the contents of this destination, replacing the old contents if any.
         /// </summary>
         public async Task LoadContents()
         {
@@ -94,14 +94,14 @@ namespace QuestPatcher.Core.Modding
             {
                 await _debugBridge.CreateDirectory(Path); // Create the destination if it does not exist
 
-                List<string> currentFiles = await _debugBridge.ListDirectoryFiles(Path);
+                var currentFiles = await _debugBridge.ListDirectoryFiles(Path);
                 ExistingFiles.Clear();
                 foreach (string file in currentFiles)
                 {
                     ExistingFiles.Add(file);
                 }
             }
-            catch(Exception)
+            catch (Exception)
             {
                 LoadingFailed = true;
                 throw; // Rethrow for calling UI to handle if they want to
@@ -113,9 +113,9 @@ namespace QuestPatcher.Core.Modding
         }
 
         /// <summary>
-        /// Copies a file to this destination
+        /// Copies a file to this destination.
         /// </summary>
-        /// <param name="localPath">The path of the file on the PC</param>
+        /// <param name="localPath">The path of the file on the PC.</param>
         public async Task PerformCopy(string localPath)
         {
             await _debugBridge.CreateDirectory(Path); // Create the destination if it does not exist
@@ -130,14 +130,18 @@ namespace QuestPatcher.Core.Modding
         }
 
         /// <summary>
-        /// Removes the copied file name and deletes it from the ExistingFiles list (no need to refresh the list to take effect)
+        /// Removes the copied file name and deletes it from the ExistingFiles list (no need to refresh the list to take effect).
         /// </summary>
-        /// <param name="name"></param>
-        /// <returns></returns>
+        /// <param name="name">The full path to the file to delete.</param>
         public async Task RemoveFile(string name)
         {
             await _debugBridge.DeleteFile(name);
             ExistingFiles.Remove(name);
+        }
+
+        private void NotifyPropertyChanged([CallerMemberName] string propertyName = "")
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
     }
 }

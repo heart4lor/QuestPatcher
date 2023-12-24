@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace QuestPatcher.Core
 {
@@ -9,13 +10,13 @@ namespace QuestPatcher.Core
         Task<bool> CheckUpdate();
         Task<bool> PromptAdbDisconnect(DisconnectionType type);
 
-        Task<bool> PromptUnstrippedUnityUnavailable();
+        Task<AdbDevice?> PromptSelectDevice(List<AdbDevice> devices);
 
-        Task<bool> PromptFlatScreenWarning();
+        Task<bool> PromptUnstrippedUnityUnavailable();
 
         Task<bool> Prompt32Bit();
 
-        Task<bool> PromptPauseBeforeCompile();
+        Task<bool> PromptUnknownModLoader();
 
         Task PromptUpgradeFromOld();
     }

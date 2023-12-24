@@ -1,22 +1,24 @@
-﻿using Avalonia.Controls;
-using QuestPatcher.Views;
-using System;
-using ReactiveUI;
-using System.Diagnostics;
-using QuestPatcher.Models;
+﻿using System;
+using System.Linq;
+using Avalonia.Controls;
+using Avalonia.Platform.Storage;
+using QuestPatcher.Core;
 using QuestPatcher.Core.Models;
 using QuestPatcher.Core.Patching;
-using QuestPatcher.Core;
+using QuestPatcher.Models;
+using ReactiveUI;
 using Serilog;
 
 namespace QuestPatcher.ViewModels
 {
     public class PatchingViewModel : ViewModelBase
     {
-        public bool IsPatchingInProgress { get => _isPatchingInProgress; set { if(_isPatchingInProgress != value) { this.RaiseAndSetIfChanged(ref _isPatchingInProgress, value); } } }
+        public bool IsPatchingInProgress { get => _isPatchingInProgress; set { if (_isPatchingInProgress != value) { this.RaiseAndSetIfChanged(ref _isPatchingInProgress, value); } } }
         private bool _isPatchingInProgress;
 
         public string PatchingStageText { get; private set; } = "";
+
+        public string? CustomSplashPath => Config.PatchingOptions.CustomSplashPath;
 
         public Config Config { get; }
 
@@ -27,9 +29,10 @@ namespace QuestPatcher.ViewModels
         public ExternalFilesDownloader FilesDownloader { get; }
 
         private readonly PatchingManager _patchingManager;
+        private readonly InstallManager _installManager;
         private readonly Window _mainWindow;
 
-        public PatchingViewModel(Config config, OperationLocker locker, PatchingManager patchingManager, Window mainWindow, ProgressViewModel progressBarView, ExternalFilesDownloader filesDownloader)
+        public PatchingViewModel(Config config, OperationLocker locker, PatchingManager patchingManager, InstallManager installManager, Window mainWindow, ProgressViewModel progressBarView, ExternalFilesDownloader filesDownloader)
         {
             Config = config;
             Locker = locker;
@@ -37,11 +40,12 @@ namespace QuestPatcher.ViewModels
             FilesDownloader = filesDownloader;
 
             _patchingManager = patchingManager;
+            _installManager = installManager;
             _mainWindow = mainWindow;
 
             _patchingManager.PropertyChanged += (_, args) =>
             {
-                if(args.PropertyName == nameof(_patchingManager.PatchingStage))
+                if (args.PropertyName == nameof(_patchingManager.PatchingStage))
                 {
                     OnPatchingStageChange(_patchingManager.PatchingStage);
                 }
@@ -50,16 +54,45 @@ namespace QuestPatcher.ViewModels
 
         public async void StartPatching()
         {
+            if (Config.PatchingOptions.FlatScreenSupport)
+            {
+                // Disable VR requirement apparently causes infinite load
+                var builder = new DialogBuilder
+                {
+                    Title = "禁用VR要求已启用",
+                    Text = "您在补丁选项中禁用了VR要求，这可能会导致出现错误，例如启动游戏时无限加载"
+                };
+                
+                builder.OkButton.Text = "仍然继续";
+                if (!await builder.OpenDialogue(_mainWindow))
+                {
+                    return;
+                }
+            }
+
             IsPatchingInProgress = true;
             Locker.StartOperation();
             try
             {
                 await _patchingManager.PatchApp();
             }
+            catch (FileDownloadFailedException ex)
+            {
+                Log.Error("Patching failed as essential files could not be downloaded: {Message}", ex.Message);
+
+                DialogBuilder builder = new()
+                {
+                    Title = "Could not download files",
+                    Text = "QuestPatcher could not download files that it needs to patch the APK. Please check your internet connection, then try again.",
+                    HideCancelButton = true
+                };
+
+                await builder.OpenDialogue(_mainWindow);
+            }
             catch (Exception ex)
             {
                 // Print troubleshooting information for debugging
-                Log.Error($"Patching failed!: {ex}");
+                Log.Error(ex, $"Patching failed!");
                 DialogBuilder builder = new()
                 {
                     Title = "完蛋!出错了",
@@ -76,8 +109,7 @@ namespace QuestPatcher.ViewModels
                 Locker.FinishOperation();
             }
 
-            Debug.Assert(_patchingManager.InstalledApp != null); // Cannot get to this screen without having loaded the installed app
-            if (_patchingManager.InstalledApp.IsModded)
+            if (_installManager.InstalledApp?.IsModded ?? false)
             {
                 // Display a dialogue to give the user some info about what to expect next, and to avoid them pressing restore app by mistake
                 Log.Debug("Patching completed successfully, displaying info dialogue");
@@ -92,6 +124,26 @@ namespace QuestPatcher.ViewModels
             }
         }
 
+        public async void SelectSplashPath()
+        {
+            try
+            {
+                var files = await _mainWindow.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+                {
+                    FileTypeFilter = new[]
+                    {
+                        FilePickerFileTypes.ImagePng
+                    }
+                });
+                Config.PatchingOptions.CustomSplashPath = files.FirstOrDefault()?.Path.LocalPath;
+                this.RaisePropertyChanged(nameof(CustomSplashPath));
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to select splash screen path");
+            }
+        }
+
         /// <summary>
         /// Updates the patching stage text in the view
         /// </summary>
@@ -101,11 +153,12 @@ namespace QuestPatcher.ViewModels
             PatchingStageText = stage switch
             {
                 PatchingStage.NotStarted => "未开始",
-                PatchingStage.MovingToTemp => "将APK移动至指定位置 (1/5)",
-                PatchingStage.Patching => "更改APK文件来使其支持安装mod&添加中文 (2/5)",
-                PatchingStage.Signing => "给APK签名 (3/5)",
-                PatchingStage.UninstallingOriginal => "卸载原有的APK (4/5)",
-                PatchingStage.InstallingModded => "安装改过的APK (5/5)",
+                PatchingStage.FetchingFiles => "下载打补丁所需的文件 (1/6)",
+                PatchingStage.MovingToTemp => "将APK移动至指定位置 (2/6)",
+                PatchingStage.Patching => "更改APK文件来使其支持安装mod (3/6)",
+                PatchingStage.Signing => "给APK签名 (4/6)",
+                PatchingStage.UninstallingOriginal => "卸载原有的APK (5/6)",
+                PatchingStage.InstallingModded => "安装改过的APK (6/6)",
                 _ => throw new NotImplementedException()
             };
             this.RaisePropertyChanged(nameof(PatchingStageText));

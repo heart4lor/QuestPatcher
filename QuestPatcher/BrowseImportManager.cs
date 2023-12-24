@@ -1,20 +1,19 @@
-﻿using Avalonia.Controls;
-using QuestPatcher.Core.Modding;
-using QuestPatcher.Core.Patching;
-using QuestPatcher.Models;
-using QuestPatcher.Views;
-using Newtonsoft.Json.Linq;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
-using System.Threading.Tasks;
 using System.Net;
+using System.Net.Http.Headers;
+using System.Threading.Tasks;
+using Avalonia.Controls;
+using Avalonia.Platform.Storage;
 using QuestPatcher.Core;
-using QuestPatcher.Services;
-using Avalonia.Media;
+using QuestPatcher.Core.Modding;
 using QuestPatcher.Core.Utils;
+using QuestPatcher.Models;
+using QuestPatcher.Services;
 using QuestPatcher.Utils;
 using Serilog;
 using Version = SemanticVersioning.Version;
@@ -26,44 +25,43 @@ namespace QuestPatcher
     /// </summary>
     public class BrowseImportManager
     {
-        private struct FileImportInfo
-        {
-            public string Path { get; set; }
-
-            public FileCopyType? PreferredCopyType { get; set; }
-        }
 
         private readonly OtherFilesManager _otherFilesManager;
         private readonly ModManager _modManager;
         private readonly Window _mainWindow;
-        private readonly PatchingManager _patchingManager;
+        private readonly InstallManager _installManager;
+        private readonly ExternalFilesDownloader _filesDownloader;
         private readonly OperationLocker _locker;
-        private readonly SpecialFolders _specialFolders;
-        private readonly FileDialogFilter _modsFilter = new();
         private readonly QuestPatcherUiService _uiService;
+        private readonly SpecialFolders _specialFolders;
+       
+        private readonly FilePickerFileType _modsFilter = new("Quest Mods")
+        {
+            Patterns = new List<string>() { "*.qmod" }
+        };
+
         private Queue<FileImportInfo>? _currentImportQueue;
 
-        public BrowseImportManager(OtherFilesManager otherFilesManager, ModManager modManager, Window mainWindow, PatchingManager patchingManager, OperationLocker locker,SpecialFolders specialFolders, QuestPatcherUiService uiService)
+        public BrowseImportManager(OtherFilesManager otherFilesManager, ModManager modManager, Window mainWindow, InstallManager installManager, OperationLocker locker, QuestPatcherUiService uiService, ExternalFilesDownloader filesDownloader ,SpecialFolders specialFolders)
         {
-            _uiService=uiService;
             _otherFilesManager = otherFilesManager;
             _modManager = modManager;
-            _specialFolders = specialFolders;
             _mainWindow = mainWindow;
-            _patchingManager = patchingManager;
+            _installManager = installManager;
             _locker = locker;
-            _modsFilter.Name = "Quest Mods";
-            _modsFilter.Extensions.Add("qmod");
+            _uiService = uiService;
+            _filesDownloader = filesDownloader;
+            _specialFolders = specialFolders;
         }
 
-        private static FileDialogFilter GetCosmeticFilter(FileCopyType copyType)
+        private static FilePickerFileType GetCosmeticFilter(FileCopyType copyType)
         {
-            return new FileDialogFilter
+            return new FilePickerFileType(copyType.NamePlural)
             {
-                Name = copyType.NamePlural,
-                Extensions = copyType.SupportedExtensions
+                Patterns = copyType.SupportedExtensions.Select(extension => $"*.{extension}").ToList()
             };
         }
+        
         public async Task<bool> AskToInstallApk(bool deleteMods = false)
         {
             var dialog = new OpenFileDialog
@@ -102,8 +100,8 @@ namespace QuestPatcher
             try
             {
                 if (deleteMods) await _modManager.DeleteAllMods();
-                await _patchingManager.Uninstall();
-                await _patchingManager.InstallApp(file);
+                await _installManager.UninstallApp(quit: false);
+                await _installManager.InstallApp(file);
             }
             finally
             {
@@ -138,7 +136,7 @@ namespace QuestPatcher
             WebClient client = new();
             File.Delete(_specialFolders.TempFolder + "/apkToInstall.apk");
             await client.DownloadFileTaskAsync(url+"?_="+ DateTime.Now.ToFileTime(), _specialFolders.TempFolder+"/apkToInstall.apk");
-            await _patchingManager.InstallApp( _specialFolders.TempFolder + "/apkToInstall.apk");
+            await _installManager.InstallApp( _specialFolders.TempFolder + "/apkToInstall.apk");
             _locker.FinishOperation();
             {
                 DialogBuilder builder1 = new()
@@ -186,43 +184,6 @@ namespace QuestPatcher
 
             return false;
         }
-        private void AddAllCosmeticFilters(OpenFileDialog dialog)
-        {
-            foreach(FileCopyType copyType in _otherFilesManager.CurrentDestinations)
-            {
-                dialog.Filters.Add(GetCosmeticFilter(copyType));
-            }
-        }
-
-        /// <summary>
-        /// Opens a browse dialog that has filters for all files supported by QuestPatcher.
-        /// This includes qmod and all other file copies.
-        /// </summary>
-        /// <returns>A task that completes when the dialog has closed and the files have been imported</returns>
-        public async Task ShowAllItemsBrowse()
-        {
-            OpenFileDialog dialog = ConstructDialog();
-
-            // Add a filter for any file type that QuestPatcher supports
-            // This includes qmod and all cosmetic/file copy types.
-            FileDialogFilter allFiles = new()
-            {
-                Name = "All Allowed Files"
-            };
-
-            List<string> allExtensions = allFiles.Extensions;
-            allExtensions.Add("qmod");
-            foreach(FileCopyType copyType in _otherFilesManager.CurrentDestinations)
-            {
-                allExtensions.AddRange(copyType.SupportedExtensions);
-            }
-
-            dialog.Filters.Add(allFiles);
-            dialog.Filters.Add(_modsFilter);
-            AddAllCosmeticFilters(dialog);
-
-            await ShowDialogAndHandleResult(dialog);
-        }
 
         /// <summary>
         /// Opens a browse dialog for installing mods only.
@@ -230,9 +191,7 @@ namespace QuestPatcher
         /// <returns>A task that completes when the dialog has closed and the files have been imported</returns>
         public async Task ShowModsBrowse()
         {
-            OpenFileDialog dialog = ConstructDialog();
-            dialog.Filters.Add(_modsFilter);
-            await ShowDialogAndHandleResult(dialog);
+            await ShowDialogAndHandleResult(new() { _modsFilter });
         }
 
         /// <summary>
@@ -242,28 +201,26 @@ namespace QuestPatcher
         /// <returns>A task that completes when the dialog has closed and the files have been imported</returns>
         public async Task ShowFileCopyBrowse(FileCopyType cosmeticType)
         {
-            OpenFileDialog dialog = ConstructDialog();
-            dialog.Filters.Add(GetCosmeticFilter(cosmeticType));
-            await ShowDialogAndHandleResult(dialog, cosmeticType);
+            await ShowDialogAndHandleResult(new() { GetCosmeticFilter(cosmeticType) }, cosmeticType);
         }
 
-        private static OpenFileDialog ConstructDialog()
+        private async Task ShowDialogAndHandleResult(List<FilePickerFileType> filters, FileCopyType? knownFileCopyType = null)
         {
-            return new OpenFileDialog()
+            var files = await _mainWindow.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
             {
-                AllowMultiple = true
-            };
-        }
+                AllowMultiple = true,
+                FileTypeFilter = filters
+            });
 
-        private async Task ShowDialogAndHandleResult(OpenFileDialog dialog, FileCopyType? knownFileCopyType = null)
-        {
-            string[] files = await dialog.ShowAsync(_mainWindow);
-            if(files == null)
+            if (files == null)
             {
                 return;
             }
 
-            await AttemptImportFiles(files, knownFileCopyType);
+            await AttemptImportFiles(files.Select(file => new FileImportInfo(file.Path.LocalPath)
+            {
+                PreferredCopyType = knownFileCopyType
+            }).ToList());
         }
 
         /// <summary>
@@ -271,29 +228,24 @@ namespace QuestPatcher
         /// Will prompt the user with any errors while importing the files.
         /// If a list of files is already importing, these files will be added to the queue
         /// </summary>
-        /// <param name="files">The paths of the files to import</param>
-        /// <param name="preferredCopyType">File copy type that will be used if there are multiple copy types for one of these files. If null or not valid for the item, a dialog will be displayed allowing the user to choose</param>
-        public async Task AttemptImportFiles(ICollection<string> files, FileCopyType? preferredCopyType = null)
+        /// <param name="files">The <see cref="FileImportInfo"/> of each file to import.</param>
+        public async Task AttemptImportFiles(ICollection<FileImportInfo> files)
         {
             bool queueExisted = _currentImportQueue != null;
-            if(_currentImportQueue == null)
+            if (_currentImportQueue == null)
             {
                 _currentImportQueue = new Queue<FileImportInfo>();
             }
 
             // Append all files to the new or existing queue
-            Log.Debug($"Enqueuing {files.Count} files");
-            foreach (string file in files)
+            Log.Debug("Enqueuing {FilesEnqueued} files", files.Count);
+            foreach (var importInfo in files)
             {
-                _currentImportQueue.Enqueue(new FileImportInfo
-                {
-                    Path = file,
-                    PreferredCopyType = preferredCopyType
-                });
+                _currentImportQueue.Enqueue(importInfo);
             }
 
             // If a queue already existed, that will be processed with our enqueued files, so we can stop here
-            if(queueExisted)
+            if (queueExisted)
             {
                 Log.Debug("Queue is already being processed");
                 return;
@@ -304,7 +256,7 @@ namespace QuestPatcher
 
             // Do nothing if attempting to import files when operations are ongoing that are not file imports
             // TODO: Ideally this would wait until the lock is free and then continue
-            if(!_locker.IsFree)
+            if (!_locker.IsFree)
             {
                 Log.Error("Failed to process files: Operations are still ongoing");
                 _currentImportQueue = null;
@@ -323,12 +275,77 @@ namespace QuestPatcher
         }
 
         /// <summary>
+        /// Attempts to download and import a file from a HTTP(S) server.
+        /// </summary>
+        /// <param name="uri">The URI to download the file from.</param>
+        public async Task AttemptImportUri(Uri uri)
+        {
+            // Download the data to a temporary file. This is necessary as we need a seekable stream.
+            var tempFile = new TempFile();
+            HttpContentHeaders headers;
+            try
+            {
+                if (_locker.IsFree)
+                {
+                    // Make sure that the download progress bar is visible
+                    _locker.StartOperation();
+                }
+
+                // TODO: Should probably make DownloadUri also take a Uri to encourage better error handling when parsing in other parts of the app.
+                headers = await _filesDownloader.DownloadUri(uri.ToString(), tempFile.Path, Path.GetFileName(uri.LocalPath));
+            }
+            catch (FileDownloadFailedException)
+            {
+                var builder = new DialogBuilder
+                {
+                    Title = "Failed to download file",
+                    Text = $"Downloading the file from {uri} failed, and thus the file could not be imported.",
+                    HideCancelButton = true
+                };
+                await builder.OpenDialogue(_mainWindow);
+                tempFile.Dispose();
+                return;
+            }
+            finally
+            {
+                _locker.FinishOperation();
+            }
+
+            // Get the file name/extension from the headers
+            string? extension = Path.GetExtension(headers.ContentDisposition?.FileName?
+                // Due to a bug in dotnet, quotes are added at both ends of the filename, so remove these to avoid a mangled file extension.
+                .TrimStart('\"')
+                .TrimEnd('\"'));
+            if (extension == null)
+            {
+                var builder = new DialogBuilder
+                {
+                    Title = "Failed to import file from URL",
+                    Text = $"The server at {uri} did not provide a valid file extension, and so QuestPatcher doesn't know how the import the file.",
+                    HideCancelButton = true
+                };
+                await builder.OpenDialogue(_mainWindow);
+                tempFile.Dispose();
+                return;
+            }
+
+            // Import the downloaded temporary file
+            await AttemptImportFiles(new List<FileImportInfo> {
+                new FileImportInfo(tempFile.Path)
+                {
+                    OverrideExtension = extension,
+                    IsTemporaryFile = true
+                }
+            });
+        }
+
+        /// <summary>
         /// Processes the current import queue until it reaches zero in size.
         /// Displays exceptions for any failed files
         /// </summary>
         private async Task ProcessImportQueue()
         {
-            if(_currentImportQueue == null)
+            if (_currentImportQueue == null)
             {
                 throw new InvalidOperationException("Cannot process import queue if there is no import queue assigned");
             }
@@ -336,25 +353,38 @@ namespace QuestPatcher
             // Attempt to import each file, and catch the exceptions if any to display them below
             Dictionary<string, Exception> failedFiles = new();
             int totalProcessed = 0; // We cannot know how many files were enqueued in total, so we keep track of that here
-            while(_currentImportQueue.TryDequeue(out FileImportInfo importInfo))
+            while (_currentImportQueue.TryDequeue(out var importInfo))
             {
                 string path = importInfo.Path;
                 totalProcessed++;
                 try
                 {
-                    Log.Information($"Importing {path} . . .");
-                    await ImportUnknownFile(path, importInfo.PreferredCopyType);
+                    Log.Information("Importing {ImportingFileName} . . .", Path.GetFileName(path));
+                    await ImportUnknownFile(importInfo);
                 }
-                catch(Exception ex)
+                catch (Exception ex)
                 {
                     failedFiles[path] = ex;
+                }
+
+                if (importInfo.IsTemporaryFile)
+                {
+                    Log.Debug("Deleting temporary file {Path}", importInfo.Path);
+                    try
+                    {
+                        File.Delete(importInfo.Path);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Warning("Failed to delete temporary file", ex);
+                    }
                 }
             }
             _currentImportQueue = null; // New files added should go to a new queue
 
-            Log.Information($"{totalProcessed - failedFiles.Count}/{totalProcessed} files imported successfully");
+            Log.Information("{SuccessfullyProcessed}/{TotalFilesProcessed} files imported successfully", totalProcessed - failedFiles.Count, totalProcessed);
 
-            if(failedFiles.Count == 0) { return; }
+            if (failedFiles.Count == 0) { return; }
 
             bool multiple = failedFiles.Count > 1;
 
@@ -368,17 +398,17 @@ namespace QuestPatcher
             {
                 // Show the exceptions for multiple files in the logs to avoid a giagantic dialog
                 builder.Text = "有多个文件安装失败，请检查日志确认详情。";
-                foreach (KeyValuePair<string, Exception> pair in failedFiles)
+                foreach (var pair in failedFiles)
                 {
-                    Log.Error($"{Path.GetFileName(pair.Key)}安装失败：{pair.Value.Message}");
-                    Log.Debug($"Full error: {pair.Value}");
+                    Log.Error("{FileName} 安装失败：{Error}", Path.GetFileName(pair.Key), pair.Value.Message);
+                    Log.Debug(pair.Value, "Full error");
                 }
             }
             else
             {
                 // Display single files with more detail for the user
                 string filePath = failedFiles.Keys.First();
-                Exception exception = failedFiles.Values.First();
+                var exception = failedFiles.Values.First();
 
                 // Don't display the full stack trace for InstallationExceptions, since these are thrown by QP and are not bugs/issues
                 if (exception is InstallationException)
@@ -390,31 +420,87 @@ namespace QuestPatcher
                     builder.Text = $"文件{Path.GetFileName(filePath)}安装失败";
                     builder.WithException(exception);
                 }
-                Log.Error($"Failed to install {Path.GetFileName(filePath)}: {exception}");
+                Log.Error("Failed to install {FileName}: {Error}", Path.GetFileName(filePath), exception.Message);
+                Log.Debug(exception, "Full Error");
             }
 
             await builder.OpenDialogue(_mainWindow);
         }
 
         /// <summary>
+        /// Attempts to import a ZIP file by extracting the contents to temporary files.
+        /// </summary>
+        /// <param name="importInfo">The ZIP file to import</param>
+        private async Task ImportZip(FileImportInfo importInfo)
+        {
+            using var zip = ZipFile.OpenRead(importInfo.Path);
+
+            var toEnqueue = new List<FileImportInfo>();
+
+            // Somebody tried dragging in a Beat Saber song, which QP doesn't support copying.
+            // Inform the user as such.
+            if (zip.Entries.Any(entry => entry.FullName.Equals("info.dat", StringComparison.OrdinalIgnoreCase)))
+            {
+                throw new InstallationException($"This file appears to be a beat saber song." +
+                    " QuestPatcher does not support importing Beat Saber songs.");
+            }
+
+
+            foreach (var entry in zip.Entries)
+            {
+                // Extract each entry to a temporary file and enqueue it
+                var temp = new TempFile();
+
+                Log.Information("Extracting {EntryName}", entry.Name);
+                try
+                {
+                    using var tempStream = File.OpenWrite(temp.Path);
+                    using var entryStream = entry.Open();
+
+                    await entryStream.CopyToAsync(tempStream);
+
+                    toEnqueue.Add(new FileImportInfo(temp.Path)
+                    {
+                        IsTemporaryFile = true,
+                        OverrideExtension = Path.GetExtension(entry.FullName),
+                    });
+                }
+                catch (Exception ex)
+                {
+                    // Make sure the temporary file is deleted if it couldn't be queued.
+                    temp.Dispose();
+                    Log.Error(ex, "Failed to extract file in ZIP");
+                }
+            }
+
+            await AttemptImportFiles(toEnqueue);
+        }
+
+        /// <summary>
         /// Figures out what the given file is, and installs it accordingly.
         /// Throws an exception if the file cannot be installed by QuestPatcher.
         /// </summary>
-        /// <param name="path">The path of file to import</param>
-        /// <param name="preferredCopyType">File copy type that will be used if there are multiple copy types for this file. If null, a dialog will be displayed allowing the user to choose</param>
-        private async Task ImportUnknownFile(string path, FileCopyType? preferredCopyType)
+        /// <param name="importInfo">Information about the file to import</param>
+        private async Task ImportUnknownFile(FileImportInfo importInfo)
         {
-            string extension = Path.GetExtension(path).ToLower();
+            string extension = importInfo.OverrideExtension ?? Path.GetExtension(importInfo.Path).ToLower();
+
+            if (extension == ".zip")
+            {
+                Log.Information("Extracting ZIP contents to import");
+                await ImportZip(importInfo);
+                return;
+            }
 
             // Attempt to install as a mod first
-            if(await TryImportMod(path))
+            if (await TryImportMod(importInfo))
             {
                 return;
             }
 
             // Attempt to copy the file to the quest as a map, hat or similar
             List<FileCopyType> copyTypes;
-            if(preferredCopyType == null || !preferredCopyType.SupportedExtensions.Contains(extension[1..]))
+            if (importInfo.PreferredCopyType == null || !importInfo.PreferredCopyType.SupportedExtensions.Contains(extension[1..]))
             {
                 copyTypes = _otherFilesManager.GetFileCopyTypes(extension);
             }
@@ -423,19 +509,19 @@ namespace QuestPatcher
                 // If we already know the file copy type
                 // e.g. from dragging into a particular part of the UI, or for browsing for a particular file type,
                 // we don't need to prompt on which file copy type to use
-                copyTypes = new() { preferredCopyType };
+                copyTypes = new() { importInfo.PreferredCopyType };
             }
 
-            if(copyTypes.Count > 0)
+            if (copyTypes.Count > 0)
             {
                 FileCopyType copyType;
-                if(copyTypes.Count > 1)
+                if (copyTypes.Count > 1)
                 {
                     // If there are multiple different file copy types for this file, prompt the user to decide what they want to import it as
-                    FileCopyType? chosen = await OpenSelectCopyTypeDialog(copyTypes, path);
-                    if(chosen == null)
+                    var chosen = await OpenSelectCopyTypeDialog(copyTypes, importInfo.Path);
+                    if (chosen == null)
                     {
-                        Log.Information($"Cancelling file {Path.GetFileName(path)}");
+                        Log.Information("No file type selected, cancelling import of {FileName}", Path.GetFileName(importInfo.Path));
                         return;
                     }
                     else
@@ -449,7 +535,7 @@ namespace QuestPatcher
                     copyType = copyTypes[0];
                 }
 
-                await copyType.PerformCopy(path);
+                await copyType.PerformCopy(importInfo.Path);
                 return;
             }
 
@@ -481,7 +567,7 @@ namespace QuestPatcher
             };
 
             List<ButtonInfo> dialogButtons = new();
-            foreach(FileCopyType copyType in copyTypes)
+            foreach (var copyType in copyTypes)
             {
                 dialogButtons.Add(new ButtonInfo
                 {
@@ -499,27 +585,6 @@ namespace QuestPatcher
             await builder.OpenDialogue(_mainWindow);
             return selectedType;
         }
-        private async Task<bool> InstallMissingCoreMods(List<JToken> mods) {
-            WebClient client = new WebClient();
-            foreach(var mod in mods)
-            {
-                var modUrl = mod["downloadLink"]?.ToString();
-
-                if (modUrl != null)
-                {
-                    if (_uiService.Config.UseMirrorDownload) modUrl = await DownloadMirrorUtil.Instance.GetMirrorUrl(modUrl);
-                    await client.DownloadFileTaskAsync(modUrl, _specialFolders.TempFolder + "/coremod_tmp.qmod");
-                    await TryImportMod(_specialFolders.TempFolder + "/coremod_tmp.qmod", true,true);
-                }
-                else
-                {
-                    Log.Fatal("Core Mod {Id} has null download link!", mod["id"]?.ToString()?? "null");
-                }
-            }
-            client.Dispose();
-            await _modManager.SaveMods();
-            return true;
-        }
         
         /**
          * Return true if all core mods are installed or the user want's to ignore missing core mods
@@ -529,21 +594,21 @@ namespace QuestPatcher
             if (lockTheLocker) _locker.StartOperation();
             if (refreshCoreMods) await CoreModUtils.Instance.RefreshCoreMods();
             
-            var coreMods = CoreModUtils.Instance.GetCoreMods(_patchingManager.InstalledApp?.Version ?? "");
+            var coreMods = CoreModUtils.Instance.GetCoreMods(_installManager.InstalledApp?.Version ?? "");
             if (coreMods.Count > 0)
             {
-                var missingCoreMods = new List<JToken>();
+                var missingCoreMods = new List<CoreModUtils.CoreMod>();
                 foreach(var coreMod in coreMods)
                 {
-                    var existingCoreMod = _modManager.AllMods.Find((mod => mod.Id == coreMod["id"]?.ToString()));
+                    var existingCoreMod = _modManager.AllMods.Find((mod => mod.Id == coreMod.Id));
                     if (existingCoreMod == null)
                     {
                         // not installed at all, or not for the right version of the game
                         missingCoreMods.Add(coreMod);
                     }
-                    else if (Version.TryParse(coreMod["version"]?.ToString(), true, out var version) && version > existingCoreMod.Version)
+                    else if (Version.TryParse(coreMod.Version, true, out var version) && version > existingCoreMod.Version)
                     {
-                        // this coreMod JToken is newer than the installed one
+                        // this coreMod is newer than the installed one
                         // don't allow core mod downgrade when checking against core mod json
                         
                         await existingCoreMod.Uninstall(); // delete the current one
@@ -573,7 +638,7 @@ namespace QuestPatcher
                 
                 if (missingCoreMods.Count != 0)
                 {
-                    Log.Warning("Core Mods Missing: {Mods}", missingCoreMods.Aggregate("", (s, token) => $"{s}\n{token["id"]}-{token["version"]}"));
+                    Log.Warning("Core Mods Missing: {Mods}", missingCoreMods);
                     DialogBuilder builder = new()
                     {
                         Title = "缺失核心Mod",
@@ -606,7 +671,7 @@ namespace QuestPatcher
                 DialogBuilder builder = new()
                 {
                     Title = "未找到该版本的核心Mod！",
-                    Text = $"你当前安装的游戏版本为{_patchingManager.InstalledApp.Version}，但核心Mod还没有更新，还没有适配该版本，所以无法安装核心Mod。\n" +
+                    Text = $"你当前安装的游戏版本为{_installManager.InstalledApp?.Version ?? "null"}，但核心Mod还没有更新，还没有适配该版本，所以无法安装核心Mod。\n" +
                     $"你可以先降级游戏再重新打补丁装Mod。\n如需降级请查看新手教程左下角",
                     HideCancelButton = manualCheck
                 };
@@ -638,39 +703,72 @@ namespace QuestPatcher
             return false;
             
         }
+                
+        private async Task<bool> InstallMissingCoreMods(IList<CoreModUtils.CoreMod> mods) {
+            using var client = new WebClient();
+            //TODO Sky: use AttemptImportUri & FileDownloader from upstream
+            foreach(var mod in mods)
+            {
+                var modUrl = mod.DownloadUrl.ToString();
+                if (_uiService.Config.UseMirrorDownload) modUrl = await DownloadMirrorUtil.Instance.GetMirrorUrl(modUrl);
+                await client.DownloadFileTaskAsync(modUrl, _specialFolders.TempFolder + "/coremod_tmp.qmod");
+                await TryImportMod(new FileImportInfo(_specialFolders.TempFolder + "/coremod_tmp.qmod"), true,true);
+            }
+            await _modManager.SaveMods();
+            return true;
+        }
+        
         /// <summary>
         /// Imports then installs a mod.
         /// Will prompt to ask the user if they want to install the mod in the case that it is outdated
         /// </summary>
-        /// <param name="path">The path of the mod</param>
+        /// <param name="importInfo">Information about the mod file to import.</param>
         /// <returns>Whether or not the file could be imported as a mod</returns>
-        private async Task<bool> TryImportMod(string path, bool avoidCoremodCheck = false,bool ignoreWrongVersion=false)
+        private async Task<bool> TryImportMod(FileImportInfo importInfo, bool avoidCoremodCheck = false,bool ignoreWrongVersion=false)
         {
             if (!avoidCoremodCheck)
                 if (!await CheckCoreMods())
                     return false;
 
             // Import the mod file and copy it to the quest
-            IMod? mod = await _modManager.TryParseMod(path);
-            if(mod is null)
+            var mod = await _modManager.TryParseMod(importInfo.Path, importInfo.OverrideExtension);
+            if (mod is null)
             {
                 return false;
             }
 
-            Debug.Assert(_patchingManager.InstalledApp != null);
+            if (mod.ModLoader != _installManager.InstalledApp?.ModLoader)
+            {
+                DialogBuilder builder = new()
+                {
+                    Title = "Mod注入器不匹配",
+                    Text = $"您正在安装的Mod需要 {mod.ModLoader} 注入器，但您的游戏是使用 {_installManager.InstalledApp?.ModLoader} 打的补丁。"
+                    + "\n您想使用所需的Mod注入器重新打补丁吗?"
+                };
+                builder.OkButton.Text = "重打补丁";
+                builder.CancelButton.Text = "不是现在";
+                if (await builder.OpenDialogue(_mainWindow))
+                {
+                    _uiService.OpenRepatchMenu(mod.ModLoader);
+                }
+
+                return true;
+            }
+
+            Debug.Assert(_installManager.InstalledApp != null);
 
             // Prompt the user for outdated mods instead of enabling them automatically
-            if(mod.PackageVersion != null && mod.PackageVersion != _patchingManager.InstalledApp.Version &&!ignoreWrongVersion)
+            if (mod.PackageVersion != null && mod.PackageVersion != _installManager.InstalledApp.Version &&!ignoreWrongVersion)
             {
                 DialogBuilder builder = new()
                 {
                     Title = "版本不匹配的Mod",
-                    Text = $"该Mod是为{mod.PackageVersion}版本的游戏开发的，然而你当前安装的游戏版本是{_patchingManager.InstalledApp.Version}。启用这个Mod可能会导致游戏崩溃，也可能不管用。"
+                    Text = $"该Mod是为{mod.PackageVersion}版本的游戏开发的，然而你当前安装的游戏版本是{_installManager.InstalledApp.Version}。启用这个Mod可能会导致游戏崩溃，也可能不管用。"
                 };
                 builder.OkButton.Text = "立即启用";
                 builder.CancelButton.Text = "取消";
 
-                if(!await builder.OpenDialogue(_mainWindow))
+                if (!await builder.OpenDialogue(_mainWindow))
                 {
                     return true;
                 }

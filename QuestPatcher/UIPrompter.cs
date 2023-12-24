@@ -1,20 +1,20 @@
-﻿using Avalonia.Controls;
-using Newtonsoft.Json.Linq;
+﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
+using System.Text.Json.Nodes;
+using System.Threading.Tasks;
+using Avalonia.Controls;
 using QuestPatcher.Core;
 using QuestPatcher.Core.Models;
 using QuestPatcher.Services;
+using QuestPatcher.ViewModels;
 using QuestPatcher.Views;
-using System;
-using System.Diagnostics;
-using System.Net;
-using System.Net.Http;
-using System.Threading.Tasks;
 using QuestPatcher.Utils;
-using Version = SemanticVersioning.Version;
+using SemVer = SemanticVersioning.Version;
 
 namespace QuestPatcher
 {
-    
     public class UIPrompter : IUserPrompter
     {
         private Window? _mainWindow;
@@ -33,27 +33,28 @@ namespace QuestPatcher
             _uiService = uiService;
             _specialFolders = specialFolders;
         }
+        
         public async Task<bool> CheckUpdate()
         {
             try
             {
-                JObject? res = null;
+                JsonNode? res = null;
                 using HttpClient client = new();
                 client.DefaultRequestHeaders.Add("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/97.0.4692.71 Safari/537.36");
                 client.DefaultRequestHeaders.Add("accept", "application/json");
                 try
                 {
-                    res = JObject.Parse(await client.GetStringAsync(@"https://beatmods.wgzeyu.com/githubapi/MicroCBer/QuestPatcher/latest"));
+                    res = JsonNode.Parse(await client.GetStringAsync(@"https://beatmods.wgzeyu.com/githubapi/MicroCBer/QuestPatcher/latest"));
                 }
                 catch (Exception e)
                 {
-                    res = JObject.Parse(await client.GetStringAsync(@"https://api.github.com/repos/MicroCBer/QuestPatcher/releases/latest"));
+                    res = JsonNode.Parse(await client.GetStringAsync(@"https://api.github.com/repos/MicroCBer/QuestPatcher/releases/latest"));
                 }
                 
-                var newest = res["tag_name"]?.ToString();
+                var newest = res?["tag_name"]?.ToString();
                 if (newest == null) throw new Exception("Failed to check update.");
 
-                var isLatest = Version.TryParse(newest, out var latest) && latest == VersionUtil.QuestPatcherVersion;
+                var isLatest = SemVer.TryParse(newest, out var latest) && latest == VersionUtil.QuestPatcherVersion;
                 
                 if (!isLatest)
                 {
@@ -178,29 +179,6 @@ namespace QuestPatcher
                     builder.Title = "设备离线";
                     builder.Text = "已检测到您的 Quest 处于离线状态。\n请尝试重新启动您的 Quest 和您的电脑";
                     break;
-                case DisconnectionType.MultipleDevices:
-                    builder.Title = "插入了多个设备";
-                    builder.Text = "多台 Android 设备已连接到你的电脑。\n请拔掉除 Quest 以外的所有设备（并关闭 BlueStacks 等模拟器）";
-                    builder.WithButtons(
-                        new ButtonInfo
-                        {
-                            Text = "快速修复·断开所有设备的连接",
-                            CloseDialogue = false,
-                            OnClick = async () =>
-                            {
-                                await _uiService!.MicroQuickFix("adb_kill_server");
-                                var builder2 = new DialogBuilder
-                                {
-                                    Title = "已经断开所有安卓设备的连接",
-                                    Text = "请先重新连接你的Quest，然后重启QuestPatcher",
-                                    HideCancelButton = true,
-                                    HideOkButton = true
-                                };
-                                await builder2.OpenDialogue(_mainWindow);
-                            }
-                        }
-                    );
-                    break;
                 case DisconnectionType.Unauthorized:
                     builder.Title = "设备未经授权";
                     builder.Text = "请在头显中允许此PC的连接（即使您之前已为 SideQuest 执行过此操作）";
@@ -208,18 +186,6 @@ namespace QuestPatcher
                 default:
                     throw new NotImplementedException($"Variant {type} has no fallback/dialogue box");
             }
-
-            return builder.OpenDialogue(_mainWindow);
-        }
-        
-        public Task<bool> PromptFlatScreenWarning()
-        {
-            DialogBuilder builder = new()
-            {
-                Title = "禁用VR要求已启用",
-                Text = "您在高级选项中禁用了VR要求，这可能会导致出现错误，例如启动游戏时无限加载"
-            };
-            builder.OkButton.Text = "仍然继续";
 
             return builder.OpenDialogue(_mainWindow);
         }
@@ -251,28 +217,15 @@ namespace QuestPatcher
             return builder.OpenDialogue(_mainWindow);
         }
 
-        public Task<bool> PromptPauseBeforeCompile()
+        public Task<bool> PromptUnknownModLoader()
         {
             DialogBuilder builder = new()
             {
-                Title = "Patching Paused",
-                Text = "APK 已修补，当您点击继续时将重新编译/重新安装。 按取消将立即停止补丁。"
+                Title = "检测到了未知的Mod注入器",
+                Text = "您尝试打补丁的应用包含了一个 QuestPatcher 无法识别的Mod注入器。" + 
+                "QuestPatcher 会尝试将已有的注入器替换为你选择的，但是这可能会导致最终的文件无法正常运行。"
             };
-            builder.OkButton.Text = "继续";
-            builder.WithButtons(new ButtonInfo
-            {
-                Text = "显示打好补丁的APK",
-                OnClick = () =>
-                {
-                    Debug.Assert(_specialFolders != null);
-                    Process.Start(new ProcessStartInfo
-                    {
-                        FileName = _specialFolders.PatchingFolder,
-                        UseShellExecute = true,
-                        Verb = "open"
-                    });
-                }
-            });
+            builder.OkButton.Text = "仍然继续";
 
             return builder.OpenDialogue(_mainWindow);
         }
@@ -284,12 +237,27 @@ namespace QuestPatcher
                 Title = "Upgrading from QuestPatcher 1",
                 Text = "It looks as though you've previously used QuestPatcher 1.\n\n" +
                     "Note that your mods from QuestPatcher 1 will be removed - this is deliberate as QuestPatcher 2 reworks mod installing to allow toggling of mods! " +
-                    "To get your mods back, just reinstall them.\n\n" + 
+                    "To get your mods back, just reinstall them.\n\n" +
                     "NOTE: All save data, custom maps and cosmetics will remain safe!",
                 HideCancelButton = true
             };
 
             return builder.OpenDialogue(_mainWindow);
+        }
+
+        public async Task<AdbDevice?> PromptSelectDevice(List<AdbDevice> devices)
+        {
+            var viewModel = new SelectDeviceWindowViewModel(devices);
+            var window = new SelectDeviceWindow
+            {
+                DataContext = viewModel,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner
+            };
+
+            viewModel.DeviceSelected += (_, device) => window.Close();
+            await window.ShowDialog(_mainWindow!);
+
+            return viewModel.SelectedDevice;
         }
     }
 }
