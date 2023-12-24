@@ -62,7 +62,7 @@ namespace QuestPatcher
             };
         }
         
-        public async Task<bool> AskToInstallApk(bool deleteMods = false)
+        public async Task<bool> AskToInstallApk(bool deleteMods = true, bool lockUi = true)
         {
             var dialog = new OpenFileDialog
             {
@@ -95,18 +95,18 @@ namespace QuestPatcher
                 };
                 if (!await builder1.OpenDialogue(_mainWindow)) return false;
             }
-            _locker.StartOperation();
+            
+            if (lockUi) _locker.StartOperation();
 
             try
             {
                 //TODO Sky: Check deletion result and prompt retry if failed
                 if (deleteMods) await _modManager.DeleteAllMods();
-                await _installManager.UninstallApp(quit: false);
-                await _installManager.InstallApp(file);
+                await _installManager.ReplaceApp(file);
             }
             finally
             {
-                _locker.FinishOperation();
+                if (lockUi) _locker.FinishOperation();
             }
             {
                 DialogBuilder builder1 = new()
@@ -170,7 +170,7 @@ namespace QuestPatcher
             
             try
             {
-                return await AskToInstallApk(true);
+                return await AskToInstallApk(deleteMods:true, lockUi:true);
             }
             catch (Exception e)
             {

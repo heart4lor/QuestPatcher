@@ -112,10 +112,13 @@ namespace QuestPatcher.Services
                     Text = "请先安装正版BeatSaber！", 
                     HideCancelButton = true
                 };
+                
                 builder1.OkButton.Text = "安装APK";
                 if (await builder1.OpenDialogue(_mainWindow) && _browseManager != null)
                 {
-                    if (!await _browseManager!.AskToInstallApk())
+                    //BUG Sky: it will try to lock the ui again and cause an unhandled exception
+                    //TODO Sky: proper fix without lockui parameter
+                    if (!await _browseManager!.AskToInstallApk(deleteMods:false, lockUi:false))
                     {
                         ExitApplication();
                     }
@@ -155,16 +158,12 @@ namespace QuestPatcher.Services
                 {
                     Text = "卸载当前版本",
                     CloseDialogue = true,
-                    ReturnValue = true,
-                    OnClick = async () =>
-                    {
-                        await InstallManager.UninstallApp();
-                    }
+                    ReturnValue = true
                 };
 
                 builder1.WithButtons(button1, button2, button3);
                 await builder1.OpenDialogue(_mainWindow);
-                ExitApplication();
+                await InstallManager.UninstallApp();
             }
             catch (Exception ex)
             {

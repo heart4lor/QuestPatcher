@@ -275,16 +275,39 @@ namespace QuestPatcher.Core
             // Move the obb backup to the original path.
             await _debugBridge.Move(backupPath, ObbPath);
         }
+                
+        /// <summary>
+        /// Uninstalls the current app if installed and then install a new app
+        /// </summary>
+        /// <param name="path">The path to the apk to install</param>
+        public async Task ReplaceApp(string path)
+        {
+            try
+            {
+                if (InstalledApp != null)
+                {
+                    await _debugBridge.UninstallApp(_config.AppId);
+                    InstalledApp = null;
+                }
+            }
+            catch (Exception e)
+            {
+                Log.Warning(e, "Failed to uninstall app: {Message}", e.GetType().Name + e.Message);
+                Log.Warning("Continuing with installation");
+            }
+            
+            await _debugBridge.InstallApp(path);
+        }
 
         /// <summary>
         /// Uninstalls the current app
         /// </summary>
         /// <returns></returns>
-        public async Task UninstallApp(bool quit = true)
+        public async Task UninstallApp()
         {
             await _debugBridge.UninstallApp(_config.AppId);
             InstalledApp = null;
-            if (quit) _quit();
+            _quit();
         }
         
         public async Task InstallApp(string path)
