@@ -119,6 +119,7 @@ namespace QuestPatcher.ViewModels
             try
             {
                 Log.Information("开始删除所有MOD！");
+                //TODO Sky: Check result and prompt retry if failed
                 await _modManager.DeleteAllMods();
             }
             catch (Exception ex)

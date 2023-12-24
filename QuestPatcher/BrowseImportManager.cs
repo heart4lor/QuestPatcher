@@ -99,6 +99,7 @@ namespace QuestPatcher
 
             try
             {
+                //TODO Sky: Check deletion result and prompt retry if failed
                 if (deleteMods) await _modManager.DeleteAllMods();
                 await _installManager.UninstallApp(quit: false);
                 await _installManager.InstallApp(file);
