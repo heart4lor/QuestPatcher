@@ -44,7 +44,7 @@
         <StackPanel Orientation="Horizontal" Spacing="10">
           <Button IsEnabled="{Binding Locker.IsAdbAvailable}" Command="{Binding ToggleAdbLog}" Content="切换ADB日志"/>
           <TextBlock VerticalAlignment="Center" FontSize="12">
-            开启ADB日志：为了使用这个，你必须让你的Q2保持连接
+            开启ADB日志：为了使用这个，你必须让你的设备保持连接
           </TextBlock>
         </StackPanel>
         <StackPanel Orientation="Horizontal" Spacing="10">

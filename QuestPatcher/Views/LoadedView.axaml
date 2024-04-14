@@ -113,12 +113,13 @@
     <StackPanel Margin="25" VerticalAlignment="Bottom" HorizontalAlignment="Left" Spacing="30">
       <ToggleSwitch IsChecked="{Binding Config.DisplayLogs}" OffContent="隐藏" OnContent="显示">显示日志</ToggleSwitch>
       <StackPanel>
-        <TextBlock Text="{Binding QPVersion, StringFormat=QP版本: {0}}" FontWeight="Light" FontSize="12" />
         <TextBlock Text="{Binding AppInfo.Version, StringFormat=APK版本: {0}}" FontWeight="Light" FontSize="12" />
-        <TextBlock Text="APK为64位" IsVisible="{Binding AppInfo.Is64Bit}" FontWeight="Light" FontSize="12" />
-        <TextBlock Text="APK为32位" IsVisible="{Binding !AppInfo.Is64Bit}" FontWeight="Light" FontSize="12" />
+        <TextBlock Text="APK为64位" IsVisible="{Binding AppInfo.Is64Bit}" FontWeight="Light" FontSize="12"/>
+        <TextBlock Text="APK为32位" IsVisible="{Binding !AppInfo.Is64Bit}" FontWeight="Light" FontSize="12"/>
         <TextBlock Text="APK已经打过补丁" IsVisible="{Binding AppInfo.IsModded}" FontWeight="Light" FontSize="12" />
         <TextBlock Text="APK没有打过补丁" IsVisible="{Binding !AppInfo.IsModded}" FontWeight="Light" FontSize="12" />
+
+        <TextBlock Text="{Binding Version, StringFormat=QP版本: {0}}" FontWeight="Light" FontSize="12" />
       </StackPanel>
     </StackPanel>
   </Panel>
