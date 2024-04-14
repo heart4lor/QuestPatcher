@@ -4,45 +4,31 @@
       "path": "/sdcard/ModData/com.AnotherAxiom.GorillaTag/Mods/GorillaCosmetics/Hats/",
       "nameSingular": "Hat",
       "namePlural": "Hats",
-      "supportedExtensions": [
-        "hat"
-      ]
+      "supportedExtensions": [ "hat" ]
     },
     {
       "path": "/sdcard/ModData/com.AnotherAxiom.GorillaTag/Mods/MonkeMapLoader/CustomMaps/",
       "nameSingular": "Map",
       "namePlural": "Maps",
-      "supportedExtensions": [
-        "gtmap"
-      ]
+      "supportedExtensions": [ "gtmap" ]
     },
     {
       "path": "/sdcard/ModData/com.AnotherAxiom.GorillaTag/Mods/GorillaCosmetics/Materials/",
       "nameSingular": "Material",
       "namePlural": "Materials",
-      "supportedExtensions": [
-        "gmat"
-      ]
+      "supportedExtensions": [ "gmat" ]
     },
     {
       "path": "/sdcard/ModData/com.AnotherAxiom.GorillaTag/Mods/MonkeSkies/",
       "nameSingular": "MonkeSkies background",
       "namePlural": "MonkeSkies backgrounds",
-      "supportedExtensions": [
-        "png",
-        "jpg",
-        "jpeg"
-      ]
+      "supportedExtensions": [ "png", "jpg", "jpeg" ]
     },
     {
       "path": "/sdcard/ModData/com.AnotherAxiom.GorillaTag/Mods/MonkeComputer/Backgrounds/",
       "nameSingular": "MonkeComputer background",
       "namePlural": "MonkeComputer backgrounds",
-      "supportedExtensions": [
-        "png",
-        "jpg",
-        "jpeg"
-      ]
+      "supportedExtensions": [ "png", "jpg", "jpeg" ]
     }
   ],
   "com.beatgames.beatsaber": [
@@ -50,35 +36,25 @@
       "path": "/sdcard/ModData/com.beatgames.beatsaber/Mods/Qosmetics/sabers/",
       "nameSingular": "自定义光剑",
       "namePlural": "自定义光剑",
-      "supportedExtensions": [
-        "qsaber"
-      ]
+      "supportedExtensions": [ "qsaber" ]
     },
     {
       "path": "/sdcard/ModData/com.beatgames.beatsaber/Mods/Qosmetics/notes/",
       "nameSingular": "自定义方块",
       "namePlural": "自定义方块",
-      "supportedExtensions": [
-        "qbloq"
-      ]
+      "supportedExtensions": [ "qbloq" ]
     },
     {
       "path": "/sdcard/ModData/com.beatgames.beatsaber/Mods/Qosmetics/walls/",
       "nameSingular": "自定义墙",
       "namePlural": "自定义墙",
-      "supportedExtensions": [
-        "qwall"
-      ]
+      "supportedExtensions": [ "qwall" ]
     },
     {
       "path": "/sdcard/ModData/com.beatgames.beatsaber/Mods/CustomPillows/images/",
       "nameSingular": "枕头材质",
       "namePlural": "枕头材质",
-      "supportedExtensions": [
-        "png",
-        "jpg",
-        "jpeg"
-      ]
+      "supportedExtensions": [ "png", "jpg", "jpeg" ]
     },
     {
       "path": "/sdcard/ModData/com.beatgames.beatsaber/Mods/CustomPillows/constellations/",
