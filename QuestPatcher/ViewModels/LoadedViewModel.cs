@@ -77,8 +77,6 @@ namespace QuestPatcher.ViewModels
                 return _installManager.InstalledApp;
             }
         }
-        
-        public string QPVersion => VersionUtil.QuestPatcherVersion.ToString();
 
         public bool NeedsPatchingView => PatchingView.IsPatchingInProgress || !AppInfo.IsModded;
 
