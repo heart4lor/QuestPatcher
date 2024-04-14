@@ -36,25 +36,31 @@ namespace QuestPatcher
         
         public async Task<bool> CheckUpdate()
         {
+#if DEBUG
+            return true;
+#endif
+            
             try
             {
                 JsonNode? res = null;
                 using HttpClient client = new();
                 client.DefaultRequestHeaders.Add("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/97.0.4692.71 Safari/537.36");
                 client.DefaultRequestHeaders.Add("accept", "application/json");
-                try
-                {
-                    res = JsonNode.Parse(await client.GetStringAsync(@"https://beatmods.wgzeyu.com/githubapi/MicroCBer/QuestPatcher/latest"));
-                }
-                catch (Exception e)
-                {
-                    res = JsonNode.Parse(await client.GetStringAsync(@"https://api.github.com/repos/MicroCBer/QuestPatcher/releases/latest"));
-                }
+                // try
+                // {
+                //     res = JsonNode.Parse(await client.GetStringAsync(@"https://beatmods.wgzeyu.com/githubapi/MicroCBer/QuestPatcher/latest"));
+                // }
+                // catch (Exception e)
+                // {
+                //     res = JsonNode.Parse(await client.GetStringAsync(@"https://api.github.com/repos/MicroCBer/QuestPatcher/releases/latest"));
+                // }
                 
-                var newest = res?["tag_name"]?.ToString();
+                res = JsonNode.Parse(await client.GetStringAsync(@"https://api.github.com/repos/MicroCBer/QuestPatcher/releases/latest"));
+                
+                string? newest = res?["tag_name"]?.ToString();
                 if (newest == null) throw new Exception("Failed to check update.");
 
-                var isLatest = SemVer.TryParse(newest, out var latest) && latest == VersionUtil.QuestPatcherVersion;
+                bool isLatest = SemVer.TryParse(newest, out var latest) && latest == VersionUtil.QuestPatcherVersion;
                 
                 if (!isLatest)
                 {
