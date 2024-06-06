@@ -16,7 +16,7 @@ public class CoreModUtils
     
     public const string BeatSaberPackageID = @"com.beatgames.beatsaber";
     
-    private const string BeatSaberCoreModsUrl = @"https://github.com/qe201020335/BMBFResourceMirror/raw/master/com.beatgames.beatsaber/core-mods.json";
+    private const string BeatSaberCoreModsUrl = @"https://raw.githubusercontent.com/QuestPackageManager/bs-coremods/main/core_mods.json";
     private const string BeatSaberCoreModsCnUrl = @"https://beatmods.wgzeyu.com/github/BMBFresources/com.beatgames.beatsaber/core-mods.json";
     private readonly HttpClient _client = new();
     private CoreModUtils()
