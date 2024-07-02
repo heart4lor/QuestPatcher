@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Avalonia.Controls;
 using QuestPatcher.Core;
 using QuestPatcher.Core.Models;
+using QuestPatcher.Resources;
 using QuestPatcher.Services;
 using QuestPatcher.ViewModels;
 using QuestPatcher.Views;
@@ -141,16 +142,17 @@ namespace QuestPatcher
         {
             Debug.Assert(_config != null);
 
-            DialogBuilder builder = new()
+            var builder = new DialogBuilder
             {
-                Title = "应用未安装",
-                Text = $"所选择的APP - {_config.AppId} - 没有在你的Quest2上安装",
+                Title = Strings.Prompt_AppNotInstalled_Title,
+                Text = string.Format(Strings.Prompt_AppNotInstalled_Text, _config.AppId),
                 HideOkButton = true
             };
+            builder.CancelButton.Text = Strings.Generic_Close;
             builder.WithButtons(
                 new ButtonInfo
                 {
-                    Text = "切换APP",
+                    Text = Strings.Prompt_AppNotInstalled_ChangeApp,
                     CloseDialogue = true,
                     ReturnValue = true,
                     OnClick = async () =>
@@ -166,13 +168,14 @@ namespace QuestPatcher
 
         public Task<bool> PromptAdbDisconnect(DisconnectionType type)
         {
-            DialogBuilder builder = new();
-            builder.OkButton.Text = "重试";
+            var builder = new DialogBuilder();
+            builder.OkButton.Text = Strings.Generic_Retry;
+
             switch (type)
             {
                 case DisconnectionType.NoDevice:
-                    builder.Title = "Quest没有连接";
-                    builder.Text = "QuestPatcher 无法检测到你的 Quest2.\n请检查你的 Quest2 是否插入了电脑, 并且是否已按照 SideQuest 安装说明设置开发人员模式。";
+                    builder.Title = Strings.Prompt_AdbDisconnect_NoDevice_Title;
+                    builder.Text = Strings.Prompt_AdbDisconnect_NoDevice_Text;
                     builder.WithButtons(
                         new ButtonInfo
                         {
@@ -182,12 +185,12 @@ namespace QuestPatcher
                     );
                     break;
                 case DisconnectionType.DeviceOffline:
-                    builder.Title = "设备离线";
-                    builder.Text = "已检测到您的 Quest 处于离线状态。\n请尝试重新启动您的 Quest 和您的电脑";
+                    builder.Title = Strings.Prompt_AdbDisconnect_Offline_Title;
+                    builder.Text = Strings.Prompt_AdbDisconnect_Offline_Text;
                     break;
                 case DisconnectionType.Unauthorized:
-                    builder.Title = "设备未经授权";
-                    builder.Text = "请在头显中允许此PC的连接（即使您之前已为 SideQuest 执行过此操作）";
+                    builder.Title = Strings.Prompt_AdbDisconnect_Unauthorized_Title;
+                    builder.Text = Strings.Prompt_AdbDisconnect_Unauthorized_Text;
                     break;
                 default:
                     throw new NotImplementedException($"Variant {type} has no fallback/dialogue box");
@@ -198,53 +201,46 @@ namespace QuestPatcher
 
         public Task<bool> PromptUnstrippedUnityUnavailable()
         {
-            DialogBuilder builder = new()
+            var builder = new DialogBuilder
             {
-                Title = "缺少libunity.so",
-                Text = "你准备Mod的应用暂时还没有未剥离的libunity.so，" +
-                        "这可能导致某些Mod不能正常运行，直到它被添加到索引中。" +
-                        "请谨慎操作 - 如果你是从旧版升级上来，最好等待它更新再打Mod。"
+                Title = Strings.Prompt_NoUnstrippedUnity_Title,
+                Text = Strings.Prompt_NoUnstrippedUnity_Text
             };
-            builder.OkButton.Text = "仍然继续";
+            builder.OkButton.Text = Strings.Generic_ContinueAnyway;
 
             return builder.OpenDialogue(_mainWindow);
         }
 
         public Task<bool> Prompt32Bit()
         {
-            DialogBuilder builder = new()
+            var builder = new DialogBuilder
             {
-                Title = "32 bit APK",
-                Text = "您尝试打补丁的应用程序是 32 位 (armeabi-v7a)。 QuestPatcher 支持 32 版本的 QuestLoader，但大多数库（如 beatsaber-hook）不支持，除非您使用非常旧的版本。" +
-                        "这将使打补丁变得更加困难。"
+                Title = Strings.Prompt_32Bit_Title,
+                Text = Strings.Prompt_32Bit_Text
             };
-            builder.OkButton.Text = "仍然继续";
+            builder.OkButton.Text = Strings.Generic_ContinueAnyway;
 
             return builder.OpenDialogue(_mainWindow);
         }
 
         public Task<bool> PromptUnknownModLoader()
         {
-            DialogBuilder builder = new()
+            var builder = new DialogBuilder
             {
-                Title = "检测到了未知的Mod注入器",
-                Text = "您尝试打补丁的应用包含了一个 QuestPatcher 无法识别的Mod注入器。" + 
-                "QuestPatcher 会尝试将已有的注入器替换为你选择的，但是这可能会导致最终的文件无法正常运行。"
+                Title = Strings.Prompt_UnknownModLoader_Title,
+                Text = Strings.Prompt_UnknownModLoader_Text
             };
-            builder.OkButton.Text = "仍然继续";
+            builder.OkButton.Text = Strings.Generic_ContinueAnyway;
 
             return builder.OpenDialogue(_mainWindow);
         }
 
         public Task PromptUpgradeFromOld()
         {
-            DialogBuilder builder = new()
+            var builder = new DialogBuilder
             {
-                Title = "Upgrading from QuestPatcher 1",
-                Text = "It looks as though you've previously used QuestPatcher 1.\n\n" +
-                    "Note that your mods from QuestPatcher 1 will be removed - this is deliberate as QuestPatcher 2 reworks mod installing to allow toggling of mods! " +
-                    "To get your mods back, just reinstall them.\n\n" +
-                    "NOTE: All save data, custom maps and cosmetics will remain safe!",
+                Title = Strings.Prompt_UpgradeFromOld_Title,
+                Text = Strings.Prompt_UpgradeFromOld_Text,
                 HideCancelButton = true
             };
 

@@ -3,6 +3,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:viewModels="clr-namespace:QuestPatcher.ViewModels"
+             xmlns:res="clr-namespace:QuestPatcher.Resources"
              mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="550"
              x:Class="QuestPatcher.Views.LoadedView"
              DragDrop.AllowDrop="True">
@@ -28,16 +29,16 @@
     </DockPanel>
     
     <TabControl Classes="sidebar">
-      <TabItem Header="打补丁" IsVisible="{Binding NeedsPatchingView}" IsSelected="{Binding !AppInfo.IsModded}">
+      <TabItem Header="{x:Static res:Strings.SideBarHeader_Patching}" IsVisible="{Binding NeedsPatchingView}" IsSelected="{Binding !AppInfo.IsModded}">
         <UserControl Content="{Binding PatchingView}" />
       </TabItem>
-      <TabItem Header="管理Mod" IsVisible="{Binding AppInfo.IsModded}" IsSelected="{Binding AppInfo.IsModded}" ScrollViewer.VerticalScrollBarVisibility="Disabled">
+      <TabItem Header="{x:Static res:Strings.SideBarHeader_ModManage}" IsVisible="{Binding AppInfo.IsModded}" IsSelected="{Binding AppInfo.IsModded}" ScrollViewer.VerticalScrollBarVisibility="Disabled">
         <UserControl Content="{Binding ManageModsView}" />
       </TabItem>
-      <TabItem Header="杂项" IsVisible="{Binding AppInfo.IsModded}" ScrollViewer.VerticalScrollBarVisibility="Disabled">
+      <TabItem Header="{x:Static res:Strings.SideBarHeader_Other}" IsVisible="{Binding AppInfo.IsModded}" ScrollViewer.VerticalScrollBarVisibility="Disabled">
         <UserControl Content="{Binding OtherItemsView}" />
       </TabItem>
-      <TabItem Header="工具 &amp; 设置">
+      <TabItem Header="{x:Static res:Strings.SideBarHeader_Options}">
         <UserControl Content="{Binding ToolsView}" />
       </TabItem>
       <TabItem Header="教程 &amp; 关于">
@@ -111,15 +112,19 @@
     </TabControl>
     
     <StackPanel Margin="25" VerticalAlignment="Bottom" HorizontalAlignment="Left" Spacing="30">
-      <ToggleSwitch IsChecked="{Binding Config.DisplayLogs}" OffContent="隐藏" OnContent="显示">显示日志</ToggleSwitch>
+      <ToggleSwitch 
+          IsChecked="{Binding Config.DisplayLogs}" 
+          Content="{x:Static res:Strings.Global_DisplayLogs}"
+          OnContent="{x:Static res:Strings.Generic_On}" 
+          OffContent="{x:Static res:Strings.Generic_Off}"/>
       <StackPanel>
-        <TextBlock Text="{Binding AppInfo.Version, StringFormat=APK版本: {0}}" FontWeight="Light" FontSize="12" />
-        <TextBlock Text="APK为64位" IsVisible="{Binding AppInfo.Is64Bit}" FontWeight="Light" FontSize="12"/>
-        <TextBlock Text="APK为32位" IsVisible="{Binding !AppInfo.Is64Bit}" FontWeight="Light" FontSize="12"/>
-        <TextBlock Text="APK已经打过补丁" IsVisible="{Binding AppInfo.IsModded}" FontWeight="Light" FontSize="12" />
-        <TextBlock Text="APK没有打过补丁" IsVisible="{Binding !AppInfo.IsModded}" FontWeight="Light" FontSize="12" />
+        <TextBlock Text="{Binding AppInfo.Version, StringFormat={x:Static res:Strings.LoadedAPKStatus_Version}}" FontWeight="Light" FontSize="12" />
+        <TextBlock Text="{x:Static res:Strings.LoadedAPKStatus_64bit}" IsVisible="{Binding AppInfo.Is64Bit}" FontWeight="Light" FontSize="12"/>
+        <TextBlock Text="{x:Static res:Strings.LoadedAPKStatus_32bit}" IsVisible="{Binding !AppInfo.Is64Bit}" FontWeight="Light" FontSize="12"/>
+        <TextBlock Text="{x:Static res:Strings.LoadedAPKStatus_Modded}" IsVisible="{Binding AppInfo.IsModded}" FontWeight="Light" FontSize="12" />
+        <TextBlock Text="{x:Static res:Strings.LoadedAPKStatus_NotModded}" IsVisible="{Binding !AppInfo.IsModded}" FontWeight="Light" FontSize="12" />
 
-        <TextBlock Text="{Binding Version, StringFormat=QP版本: {0}}" FontWeight="Light" FontSize="12" />
+        <TextBlock Text="{Binding Version, StringFormat={x:Static res:Strings.LoadedQPVersion}}" FontWeight="Light" FontSize="12" />
       </StackPanel>
     </StackPanel>
   </Panel>

@@ -13,6 +13,7 @@ using QuestPatcher.Core;
 using QuestPatcher.Core.Modding;
 using QuestPatcher.Core.Utils;
 using QuestPatcher.Models;
+using QuestPatcher.Resources;
 using QuestPatcher.Services;
 using QuestPatcher.Utils;
 using Serilog;
@@ -299,8 +300,8 @@ namespace QuestPatcher
             {
                 var builder = new DialogBuilder
                 {
-                    Title = "Failed to download file",
-                    Text = $"Downloading the file from {uri} failed, and thus the file could not be imported.",
+                    Title = Strings.BrowseImport_DownloadFailed_Title,
+                    Text = String.Format(Strings.BrowseImport_DownloadFailed_Text, uri),
                     HideCancelButton = true
                 };
                 await builder.OpenDialogue(_mainWindow);
@@ -321,8 +322,8 @@ namespace QuestPatcher
             {
                 var builder = new DialogBuilder
                 {
-                    Title = "Failed to import file from URL",
-                    Text = $"The server at {uri} did not provide a valid file extension, and so QuestPatcher doesn't know how the import the file.",
+                    Title = Strings.BrowseImport_BadUrl_Title,
+                    Text = String.Format(Strings.BrowseImport_BadUrl_Text, uri),
                     HideCancelButton = true
                 };
                 await builder.OpenDialogue(_mainWindow);
@@ -389,16 +390,16 @@ namespace QuestPatcher
 
             bool multiple = failedFiles.Count > 1;
 
-            DialogBuilder builder = new()
+            var builder = new DialogBuilder
             {
-                Title = "导入失败",
+                Title = Strings.BrowseImport_ImportFailed_Title,
                 HideCancelButton = true
             };
 
             if (multiple)
             {
                 // Show the exceptions for multiple files in the logs to avoid a giagantic dialog
-                builder.Text = "有多个文件安装失败，请检查日志确认详情。";
+                builder.Text = Strings.BrowseImport_ImportFailed_Multiple_Text;
                 foreach (var pair in failedFiles)
                 {
                     Log.Error("{FileName} 安装失败：{Error}", Path.GetFileName(pair.Key), pair.Value.Message);
@@ -409,20 +410,20 @@ namespace QuestPatcher
             {
                 // Display single files with more detail for the user
                 string filePath = failedFiles.Keys.First();
-                var exception = failedFiles.Values.First();
-
+                var ex = failedFiles.Values.First();
+                string fileName = Path.GetFileName(filePath);
                 // Don't display the full stack trace for InstallationExceptions, since these are thrown by QP and are not bugs/issues
-                if (exception is InstallationException)
+                if (ex is InstallationException)
                 {
-                    builder.Text = $"{Path.GetFileName(filePath)}安装失败：{exception.Message}";
+                    builder.Text = String.Format(Strings.BrowseImport_ImportFailed_Single_Exception_Text, fileName, ex.Message);
                 }
                 else
                 {
-                    builder.Text = $"文件{Path.GetFileName(filePath)}安装失败";
-                    builder.WithException(exception);
+                    builder.Text = String.Format(Strings.BrowseImport_ImportFailed_Single_Text, fileName);
+                    builder.WithException(ex);
                 }
-                Log.Error("Failed to install {FileName}: {Error}", Path.GetFileName(filePath), exception.Message);
-                Log.Debug(exception, "Full Error");
+                Log.Error("Failed to install {FileName}: {Error}", fileName, ex.Message);
+                Log.Debug(ex, "Full Error");
             }
 
             await builder.OpenDialogue(_mainWindow);
@@ -560,11 +561,12 @@ namespace QuestPatcher
         {
             FileCopyType? selectedType = null;
 
-            DialogBuilder builder = new()
+            var builder = new DialogBuilder
             {
-                Title = "多种导入选项",
-                Text = $"{Path.GetFileName(path)}可以作为多种不同类型的文件导入，请选择你想要安装的内容。",
-                HideOkButton = true
+                Title = Strings.BrowseImport_MultipleImport_Title,
+                Text = String.Format(Strings.BrowseImport_MultipleImport_Text, Path.GetFileName(path)),
+                HideOkButton = true,
+                HideCancelButton = true
             };
 
             List<ButtonInfo> dialogButtons = new();
@@ -740,14 +742,13 @@ namespace QuestPatcher
 
             if (mod.ModLoader != _installManager.InstalledApp?.ModLoader)
             {
-                DialogBuilder builder = new()
+                var builder = new DialogBuilder
                 {
-                    Title = "Mod注入器不匹配",
-                    Text = $"您正在安装的Mod需要 {mod.ModLoader} 注入器，但您的游戏是使用 {_installManager.InstalledApp?.ModLoader} 打的补丁。"
-                    + "\n您想使用所需的Mod注入器重新打补丁吗?"
+                    Title = Strings.Mod_WrongModLoader_Title,
+                    Text = String.Format(Strings.Mod_WrongModLoader_Text, mod.ModLoader, _installManager.InstalledApp?.ModLoader)
                 };
-                builder.OkButton.Text = "重打补丁";
-                builder.CancelButton.Text = "不是现在";
+                builder.OkButton.Text = Strings.Mod_WrongModLoader_Repatch;
+                builder.CancelButton.Text = Strings.Generic_NotNow;
                 if (await builder.OpenDialogue(_mainWindow))
                 {
                     _uiService.OpenRepatchMenu(mod.ModLoader);
@@ -761,13 +762,13 @@ namespace QuestPatcher
             // Prompt the user for outdated mods instead of enabling them automatically
             if (mod.PackageVersion != null && mod.PackageVersion != _installManager.InstalledApp.Version &&!ignoreWrongVersion)
             {
-                DialogBuilder builder = new()
+                var builder = new DialogBuilder
                 {
-                    Title = "版本不匹配的Mod",
-                    Text = $"该Mod是为{mod.PackageVersion}版本的游戏开发的，然而你当前安装的游戏版本是{_installManager.InstalledApp.Version}。启用这个Mod可能会导致游戏崩溃，也可能不管用。"
+                    Title = Strings.Mod_OutdatedMod_Title,
+                    Text = String.Format(Strings.Mod_OutdatedMod_Text, mod.PackageVersion, _installManager.InstalledApp.Version),
                 };
-                builder.OkButton.Text = "立即启用";
-                builder.CancelButton.Text = "取消";
+                builder.OkButton.Text = Strings.Mod_OutdatedMod_EnableNow;
+                builder.CancelButton.Text = Strings.Generic_Cancel;
 
                 if (!await builder.OpenDialogue(_mainWindow))
                 {

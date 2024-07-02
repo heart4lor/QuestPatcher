@@ -10,6 +10,7 @@ using QuestPatcher.Core.Models;
 using QuestPatcher.Core.Patching;
 using QuestPatcher.Core.Utils;
 using QuestPatcher.Models;
+using QuestPatcher.Resources;
 using QuestPatcher.Utils;
 using QuestPatcher.ViewModels;
 using QuestPatcher.ViewModels.Modding;
@@ -42,6 +43,19 @@ namespace QuestPatcher.Services
             _appLifetime = appLifetime;
             _themeManager = new ThemeManager(Config, SpecialFolders);
 
+            // Deal with language configuration before we load the UI
+            try
+            {
+                var language = Config.Language.ToCultureInfo();
+                Strings.Culture = language;
+            }
+            catch (Exception)
+            {
+                Log.Warning("Failed to set language from config: {Code}", Config.Language);
+                Config.Language = Language.Default;
+                Strings.Culture = null;
+            }
+
             _mainWindow = PrepareUi();
 
             _appLifetime.MainWindow = _mainWindow;
@@ -72,7 +86,7 @@ namespace QuestPatcher.Services
                 new ManageModsViewModel(ModManager, InstallManager, window, _operationLocker, progressViewModel, _browseManager),
                 _loggingViewModel,
                 new ToolsViewModel(Config, progressViewModel, _operationLocker, window, SpecialFolders, InstallManager, DebugBridge, this, InfoDumper,
-                    _themeManager, _browseManager, ModManager),
+                    _themeManager, _browseManager, ModManager, ExitApplication),
                 _otherItemsView,
                 Config,
                 InstallManager,
@@ -167,11 +181,11 @@ namespace QuestPatcher.Services
             }
             catch (Exception ex)
             {
-                DialogBuilder builder = new()
+                var builder = new DialogBuilder
                 {
-                    Title = "出错了！",
-                    Text = "加载的过程中出现了意料之外的错误！",
-                    HideCancelButton = true
+                    Title = Strings.Loading_UnhandledError_Title,
+                    Text = Strings.Loading_UnhandledError_Text,
+                    HideCancelButton = true,
                 };
                 builder.WithException(ex);
                 await builder.OpenDialogue(_mainWindow);
@@ -195,12 +209,12 @@ namespace QuestPatcher.Services
             // We must set this to true at first, even if the user might press OK later.
             // This is since the caller of the event will not wait for our async handler to finish
             args.Cancel = true;
-            DialogBuilder builder = new()
+            var builder = new DialogBuilder
             {
-                Title = "操作仍在处理中！",
-                Text = "QuestPatcher正在处理中。在处理完成前强行关闭可能会损坏你的游戏！"
+                Title = Strings.Prompt_OperationInProgress_Title,
+                Text = Strings.Prompt_OperationInProgress_Text
             };
-            builder.OkButton.Text = "强制关闭";
+            builder.OkButton.Text = Strings.Generic_CloseAnyway;
 
             // Now we can exit the application if the user decides to
             if (await builder.OpenDialogue(_mainWindow))

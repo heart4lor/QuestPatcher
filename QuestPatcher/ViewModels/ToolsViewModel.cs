@@ -2,11 +2,13 @@
 using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
 using QuestPatcher.Core;
 using QuestPatcher.Core.Modding;
 using QuestPatcher.Core.Models;
 using QuestPatcher.Models;
+using QuestPatcher.Resources;
 using QuestPatcher.Services;
 using ReactiveUI;
 using Serilog;
@@ -22,8 +24,21 @@ namespace QuestPatcher.ViewModels
         public OperationLocker Locker { get; }
 
         public ThemeManager ThemeManager { get; }
+        
+        public Language SelectedLanguage
+        {
+            get => Config.Language;
+            set
+            {
+                if (value != Config.Language)
+                {
+                    Config.Language = value;
+                    ShowLanguageChangeDialog();
+                }
+            }
+        }
 
-        public string AdbButtonText => _isAdbLogging ? "Stop ADB Log" : "Start ADB Log";
+        public string AdbButtonText => _isAdbLogging ? Strings.Tools_Tool_ToggleADB_Stop : Strings.Tools_Tool_ToggleADB_Start;
 
         private bool _isAdbLogging;
 
@@ -35,11 +50,12 @@ namespace QuestPatcher.ViewModels
         private readonly InfoDumper _dumper;
         private readonly BrowseImportManager _browseManager;
         private readonly ModManager _modManager;
+        private readonly Action _quit;
 
         public ToolsViewModel(Config config, ProgressViewModel progressView, OperationLocker locker, 
             Window mainWindow, SpecialFolders specialFolders, InstallManager installManager, 
             AndroidDebugBridge debugBridge, QuestPatcherUiService uiService, InfoDumper dumper, ThemeManager themeManager, 
-            BrowseImportManager browseManager, ModManager modManager)
+            BrowseImportManager browseManager, ModManager modManager, Action quit)
         {
             Config = config;
             ProgressView = progressView;
@@ -54,6 +70,7 @@ namespace QuestPatcher.ViewModels
             _debugBridge = debugBridge;
             _uiService = uiService;
             _dumper = dumper;
+            _quit = quit;
 
             _debugBridge.StoppedLogging += (_, _) =>
             {
@@ -77,12 +94,12 @@ namespace QuestPatcher.ViewModels
         {
             try
             {
-                DialogBuilder builder = new()
+                var builder = new DialogBuilder
                 {
-                    Title = "你确定吗？",
-                    Text = "游戏卸载完成后本软件将自动退出。如果你今后又安装了回来，重新打开本软件就可以再次打补丁"
+                    Title = Strings.Tools_Tool_UninstallApp_Title,
+                    Text = Strings.Tools_Tool_UninstallApp_Text,
                 };
-                builder.OkButton.Text = "好的，卸载";
+                builder.OkButton.Text = Strings.Tools_Tool_UninstallApp_Confirm;
                 builder.CancelButton.Text = "算了，我再想想";
                 if (await builder.OpenDialogue(_mainWindow))
                 {
@@ -154,10 +171,10 @@ namespace QuestPatcher.ViewModels
             catch (Exception ex)
             {
                 Log.Error(ex, "Failed to clear cache");
-                DialogBuilder builder = new()
+                var builder = new DialogBuilder
                 {
-                    Title = "Failed to clear cache",
-                    Text = "Running the quick fix failed due to an unhandled error",
+                    Title = Strings.Tools_Tool_QuickFix_Failed_Title,
+                    Text = Strings.Tools_Tool_QuickFix_Failed_Text,
                     HideCancelButton = true
                 };
                 builder.WithException(ex);
@@ -210,10 +227,10 @@ namespace QuestPatcher.ViewModels
             {
                 // Show a dialog with any errors
                 Log.Error(ex, "Failed to create dump");
-                DialogBuilder builder = new()
+                var builder = new DialogBuilder
                 {
-                    Title = "Failed to create dump",
-                    Text = "Creating the dump failed due to an unhandled error",
+                    Title = Strings.Tools_Tool_CreateDump_Failed_Title,
+                    Text = Strings.Tools_Tool_CreateDump_Failed_Text,
                     HideCancelButton = true
                 };
                 builder.WithException(ex);
@@ -253,10 +270,10 @@ namespace QuestPatcher.ViewModels
             catch (Exception ex)
             {
                 Log.Error(ex, "Failed to restart app");
-                DialogBuilder builder = new()
+                var builder = new DialogBuilder
                 {
-                    Title = "Failed to restart app",
-                    Text = "Restarting the app failed due to an unhandled error",
+                    Title = Strings.Tools_Tool_RestartApp_Failed_Title,
+                    Text = Strings.Tools_Tool_RestartApp_Failed_Text,
                     HideCancelButton = true
                 };
                 builder.WithException(ex);
@@ -277,6 +294,32 @@ namespace QuestPatcher.ViewModels
                 UseShellExecute = true,
                 Verb = "open"
             });
+        }
+        
+        private async void ShowLanguageChangeDialog()
+        {
+            Strings.Culture = Config.Language.ToCultureInfo(); // Update the resource language so the dialog is in the correct language 
+            
+            var builder = new DialogBuilder
+            {
+                Title = Strings.Tools_Option_Language_Title,
+                Text = Strings.Tools_Option_Language_Text,
+            };
+            builder.OkButton.Text = Strings.Generic_OK;
+            builder.CancelButton.Text = Strings.Generic_NotNow;
+            builder.OkButton.OnClick = () =>
+            {
+                string? exePath = Process.GetCurrentProcess().MainModule?.FileName;
+                if(exePath != null)
+                {
+                    Process.Start(exePath);
+                }
+
+                _quit();
+            };
+            
+
+            await builder.OpenDialogue(_mainWindow);
         }
     }
 }

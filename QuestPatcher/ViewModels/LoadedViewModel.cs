@@ -5,6 +5,7 @@ using System.Linq;
 using Avalonia.Input;
 using QuestPatcher.Core;
 using QuestPatcher.Core.Models;
+using QuestPatcher.Resources;
 using QuestPatcher.Utils;
 using QuestPatcher.ViewModels.Modding;
 using ReactiveUI;
@@ -15,6 +16,8 @@ namespace QuestPatcher.ViewModels
 {
     public class LoadedViewModel : ViewModelBase
     {
+        public string SelectedAppText => $"Modified by MicroBlock";
+
         public void ShowTutorial()
         {
             Util.OpenWebpage("https://bs.wgzeyu.com/oq-guide-qp/");
@@ -42,8 +45,6 @@ namespace QuestPatcher.ViewModels
             Util.OpenWebpage("https://space.bilibili.com/3744764");
         }
         
-        public string SelectedAppText => $"Modified by MicroBlock";
-        
         public PatchingViewModel PatchingView { get; }
 
         public ManageModsViewModel ManageModsView { get; }
@@ -64,7 +65,7 @@ namespace QuestPatcher.ViewModels
             }
         }
 
-        public string WelcomeText => $"{AppName} 2";
+        public string WelcomeText => string.Format(Strings.Global_WelcomeMessage, AppName);
 
         public string Version => VersionUtil.QuestPatcherVersion.ToString();
 
