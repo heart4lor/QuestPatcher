@@ -99,7 +99,7 @@
         <value>无</value>
     </data>
     <data name="PatchingOption_HandTracking_V1HighFrequency" xml:space="preserve">
-        <value>V1 高频</value>
+        <value>V1 高频 (v28以上系统)</value>
     </data>
     <data name="Patching_SplashScreen" xml:space="preserve">
         <value>自定义启动画面:</value>
@@ -541,5 +541,17 @@
     </data>
     <data name="Tools_Option_Language_Text" xml:space="preserve">
         <value>语言已更改。 请重新启动 QuestPatcher 以使更改生效。</value>
+    </data>
+    <data name="PatchingOption_HandTracking_V1" xml:space="preserve">
+        <value>V1 (v12以上系统)</value>
+    </data>
+    <data name="PatchingOption_HandTracking_V2" xml:space="preserve">
+        <value>V2 (v39以上系统)</value>
+    </data>
+    <data name="PatchingOption_Passthrough" xml:space="preserve">
+        <value>启用透视</value>
+    </data>
+    <data name="PatchingOption_BodyTracking" xml:space="preserve">
+        <value>启用身体追踪</value>
     </data>
 </root>
