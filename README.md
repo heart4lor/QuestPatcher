@@ -4,13 +4,13 @@ QuestPatcher是给游戏打补丁装Mod的工具，有了它才能安装第三�
 
 该版本(Quest Patcher MWM)是 [@MicroCBer](https://github.com/MicroCBer) 与 [@WGzeyu](https://github.com/WGzeyu) 和 [@qe201020335](https://github.com/qe201020335) 的修改版本，其修改的内容如下
 
-- 1.汉化界面
-- 2.增加自动打包汉化功能
+- 1.~~汉化界面~~ (已合并至上游)
+- 2.~~增加自动打包汉化功能~~ (汉化功能已变为通过[汉化Mod](https://github.com/qe201020335/PolyglotInject/releases)实现)
 - 3.增加自动更新功能
-- 4.~~将软件下载源换为国内的Mirror（求赞助！）~~ 暂不可用
+- 4.~~将软件下载源换为国内的Mirror（求赞助！）~~ (暂不可用)
 - 5.增加教程页面
 - 6.自动安装核心Mod
-- 7.一键安装QuestServerSwitcher
+- 7.一键安装QuestServerSwitcher ([Icey](#icey))
 - 8.修复某些Bug
 
 多半会鸽的功能：
@@ -19,7 +19,7 @@ QuestPatcher是给游戏打补丁装Mod的工具，有了它才能安装第三�
 # 如何下载
 | 下载方式 | 下载链接 |
 |---|---|
-| 泽宇的网盘 | [点我](https://share.wgzeyu.vip/) |
+| 网盘 | [点我](https://share.wgzeyu.vip/) |
 | Github Release | [ Releases ](https://github.com/MicroCBer/QuestPatcher/releases/latest) |
 | Github Actions | [ Github Actions ](https://github.com/MicroCBer/QuestPatcher/actions) |
 
