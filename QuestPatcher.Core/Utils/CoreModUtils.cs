@@ -136,7 +136,7 @@ public class CoreModUtils
         
         public override string ToString()
         {
-            return $"{Id} {Version}";
+            return $"{Id}@{Version}";
         }
     }
 }
