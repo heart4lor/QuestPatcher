@@ -35,7 +35,7 @@ namespace QuestPatcher
         private readonly OperationLocker _locker;
         private readonly QuestPatcherUiService _uiService;
         private readonly SpecialFolders _specialFolders;
-       
+
         private readonly FilePickerFileType _modsFilter = new("Quest Mods")
         {
             Patterns = new List<string>() { "*.qmod" }

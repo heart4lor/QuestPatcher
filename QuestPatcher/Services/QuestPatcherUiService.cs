@@ -81,20 +81,18 @@ namespace QuestPatcher.Services
             _otherItemsView = new OtherItemsViewModel(OtherFilesManager, window, _browseManager, _operationLocker, progressViewModel);
             _patchingView = new PatchingViewModel(Config, _operationLocker, PatchingManager, InstallManager, window, progressViewModel, FilesDownloader);
 
-            var loadedView = new LoadedViewModel(
-                _patchingView,
-                new ManageModsViewModel(ModManager, InstallManager, window, _operationLocker, progressViewModel, _browseManager),
-                _loggingViewModel,
-                new ToolsViewModel(Config, progressViewModel, _operationLocker, window, SpecialFolders, InstallManager, DebugBridge, this, InfoDumper,
-                    _themeManager, _browseManager, ModManager, ExitApplication),
-                _otherItemsView,
-                Config,
-                InstallManager,
-                _browseManager
-            );
-                
             MainWindowViewModel mainWindowViewModel = new(
-                loadedView,
+                new LoadedViewModel(
+                    _patchingView,
+                    new ManageModsViewModel(ModManager, InstallManager, window, _operationLocker, progressViewModel, _browseManager),
+                    _loggingViewModel,
+                    new ToolsViewModel(Config, progressViewModel, _operationLocker, window, SpecialFolders, InstallManager, DebugBridge, this, InfoDumper,
+                        _themeManager, _browseManager, ModManager, ExitApplication),
+                    _otherItemsView,
+                    Config,
+                    InstallManager,
+                    _browseManager
+                ),
                 new LoadingViewModel(progressViewModel, _loggingViewModel, Config),
                 this
             );

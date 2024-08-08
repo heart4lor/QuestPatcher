@@ -88,6 +88,7 @@ namespace QuestPatcher.Core.Patching
             if (_libUnityIndex == null)
             {
                 Log.Debug("Downloading libunity index for the first time . . .");
+
                 try
                 {
                     _libUnityIndex = await client.GetFromJsonAsync<Dictionary<string, Dictionary<string, string>>>(repoRoot + "/index.json");

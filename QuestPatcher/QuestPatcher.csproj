@@ -40,17 +40,17 @@
     <CFBundlePackageType>APPL</CFBundlePackageType>
     <CFBundleSignature>????</CFBundleSignature>
     <CFBundleExecutable>QuestPatcher</CFBundleExecutable>
-    <CFBundleIconFile>iconfile.icns</CFBundleIconFile>
+    <CFBundleIconFile>iconfile.icns</CFBundleIconFile> 
     <NSPrincipalClass>NSApplication</NSPrincipalClass>
     <NSHighResolutionCapable>true</NSHighResolutionCapable>
-  </PropertyGroup>
+</PropertyGroup>
 
   <ItemGroup>
     <AvaloniaResource Include="Assets\**" />
     <AvaloniaResource Include="Styles\**" />
     <None Include="iconfile.icns" CopyToOutputDirectory="Always" Condition="$(RuntimeIdentifier.StartsWith('osx'))" />
   </ItemGroup>
-
+  
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="11.0.6" />
     <PackageReference Include="Avalonia.Desktop" Version="11.0.6" />

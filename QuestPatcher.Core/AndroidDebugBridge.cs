@@ -1,4 +1,5 @@
-﻿using System;
+﻿
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -535,7 +536,7 @@ namespace QuestPatcher.Core
         public async Task InstallApp(string apkPath)
         {
             string pushPath = $"/data/local/tmp/{Guid.NewGuid()}.apk";
-            
+
             await RunCommand($"push {apkPath.EscapeProc()} {pushPath}");
             await RunShellCommand($"pm install {pushPath}");
             await RunShellCommand($"rm {pushPath}");
