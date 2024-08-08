@@ -64,7 +64,7 @@
           <TextBlock FontSize="20" Text="{x:Static res:Strings.Tools_Section_Options}"/>
           <TextBlock FontSize="10" VerticalAlignment="Bottom" FontWeight="Light" Text="{x:Static res:Strings.Tools_Section_Options_Description}"/>
         </StackPanel> 
-        <StackPanel Orientation="Horizontal" Spacing="10">
+        <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="False">
           <TextBlock VerticalAlignment="Center" FontSize="15" Text="{x:Static res:Strings.Tools_Option_Language}"/>
           <ComboBox SelectedIndex="{Binding SelectedLanguage}" IsEnabled="{Binding Locker.IsFree}">
             <ComboBoxItem Content="{x:Static res:Strings.Tools_Option_Language_Default}"/>
