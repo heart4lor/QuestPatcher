@@ -58,7 +58,8 @@ namespace QuestPatcher.ViewModels.Modding
         {
             await _browseManager.ShowModsBrowse();
         }
-        public async void OnCheckCoremodsClick()
+        
+        public async void OnCheckCoreModsClick()
         {
             await _browseManager.CheckCoreMods(true,true, true);
         }

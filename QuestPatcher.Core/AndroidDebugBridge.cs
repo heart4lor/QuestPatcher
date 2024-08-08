@@ -640,19 +640,8 @@ namespace QuestPatcher.Core
             {
                 commands.Add($"rm -f {path.WithForwardSlashes().EscapeBash()}");
             }
-            try
-            {
-                await RunShellCommands(commands);
-            }
-            catch (Exception ex)
-            {
-                //TODO Sky: is this still needed?
-                if(ex.ToString().Contains("BeatTogether.cfg"))
-                {
-                    Log.Warning("[ MFix ] Threw error about BeatTogether.cfg.Handled.");
-                }
-                else throw ex;
-            }
+
+            await RunShellCommands(commands);
         }
 
         public async Task ExtractArchive(string path, string outputFolder)
