@@ -63,7 +63,8 @@ public class CoreModUtils
         _cancellationTokenSource = new CancellationTokenSource();
         var token = _cancellationTokenSource.Token;
 
-        if (!await LoadCoreMods(BeatSaberCoreModsUrl, token) && !await LoadCoreMods(BeatSaberCoreModsCnUrl, token))
+        // if (!await LoadCoreMods(BeatSaberCoreModsUrl, token) && !await LoadCoreMods(BeatSaberCoreModsCnUrl, token))
+        if (!await LoadCoreMods(BeatSaberCoreModsUrl, token))  // disable cn core mods url
         {
             Log.Error("Cannot fetch core mods from any source");
         }
