@@ -226,7 +226,7 @@ namespace QuestPatcher.Services
         /// </summary>
         public async Task OpenChangeAppMenu(bool quitIfNotSelected)
         {
-            Config.AppId = CoreModUtils.BeatSaberPackageID;
+            Config.AppId = SharedConstants.BeatSaberPackageID;
             DialogBuilder builder = new()
             {
                 Title = "该改版无法Mod其他应用！",

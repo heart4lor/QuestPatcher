@@ -14,8 +14,6 @@ public class CoreModUtils
 {
     public static readonly CoreModUtils Instance = new();
     
-    public const string BeatSaberPackageID = @"com.beatgames.beatsaber";
-    
     private const string BeatSaberCoreModsUrl = @"https://raw.githubusercontent.com/QuestPackageManager/bs-coremods/main/core_mods.json";
     private const string BeatSaberCoreModsCnUrl = @"https://beatmods.wgzeyu.com/github/BMBFresources/com.beatgames.beatsaber/core-mods.json";
     private readonly HttpClient _client = new();
@@ -41,7 +39,7 @@ public class CoreModUtils
     }
 
     private Dictionary<string, IList<CoreMod>>? _coreModsMap;  // game version: core mods
-    private string _coreModPackageId = BeatSaberPackageID;
+    private string _coreModPackageId = SharedConstants.BeatSaberPackageID;
 
     private CancellationTokenSource? _cancellationTokenSource;
     
@@ -49,7 +47,7 @@ public class CoreModUtils
     {
         Log.Information("Refreshing Core Mods");
 
-        if (PackageId != BeatSaberPackageID)
+        if (PackageId != SharedConstants.BeatSaberPackageID)
         {
             Log.Warning("There are no core mods known for this game");
             // currently there are only core mods organized for Beat Saber.
