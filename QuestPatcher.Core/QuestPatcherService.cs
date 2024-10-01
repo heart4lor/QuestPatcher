@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
+using QuestPatcher.Core.Downgrading;
 using QuestPatcher.Core.Modding;
 using QuestPatcher.Core.Models;
 using QuestPatcher.Core.Patching;
@@ -29,6 +30,8 @@ namespace QuestPatcher.Core
         protected IUserPrompter Prompter { get; }
 
         protected InfoDumper InfoDumper { get; }
+        
+        protected DowngradeManger DowngradeManger { get; }
 
         //TODO Sky: avoid making it public
         public Config Config => _configManager.GetOrLoadConfig();
@@ -60,6 +63,7 @@ namespace QuestPatcher.Core
             ModManager.RegisterModProvider(new QModProvider(ModManager, Config, DebugBridge, FilesDownloader));
             PatchingManager = new PatchingManager(Config, DebugBridge, SpecialFolders, FilesDownloader, Prompter, ModManager, InstallManager);
             InfoDumper = new InfoDumper(SpecialFolders, DebugBridge, ModManager, _configManager, InstallManager);
+            DowngradeManger = new DowngradeManger(InstallManager, FilesDownloader);
 
             Log.Debug("QuestPatcherService constructed (QuestPatcher version {QuestPatcherVersion})", VersionUtil.QuestPatcherVersion);
         }
@@ -128,7 +132,7 @@ namespace QuestPatcher.Core
             
             CoreModUtils.Instance.PackageId = Config.AppId;
             await InstallManager.LoadInstalledApp();
-            await Task.WhenAll(CoreModUtils.Instance.RefreshCoreMods(), DownloadMirrorUtil.Instance.Refresh());
+            await Task.WhenAll(CoreModUtils.Instance.RefreshCoreMods(), DownloadMirrorUtil.Instance.Refresh(), DowngradeManger.LoadAvailableDowngrades());
             if (InstallManager.InstalledApp!.ModLoader == ModLoader.Scotland2)
             {
                 await PatchingManager.SaveScotland2(false); // Make sure that Scotland2 is saved to the right location

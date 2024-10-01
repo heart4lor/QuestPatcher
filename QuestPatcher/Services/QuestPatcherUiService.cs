@@ -257,6 +257,15 @@ namespace QuestPatcher.Services
             menuWindow.WindowStartupLocation = WindowStartupLocation.CenterOwner;
             await menuWindow.ShowDialog(_mainWindow);
         }
+        
+        public void OpenDowngradeMenu()
+        {
+            Window downgradeWindow = new DowngradeWindow();
+            var vm = new DowngradeViewModel(downgradeWindow, Config, InstallManager, DowngradeManger);
+            downgradeWindow.DataContext = vm;
+            downgradeWindow.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+            _ = downgradeWindow.ShowDialog(_mainWindow);
+        }
 
         //TODO Sky: avoid making it public
         public async Task Reload()

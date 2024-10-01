@@ -15,6 +15,10 @@
       <StackPanel Spacing="10">
         <TextBlock FontSize="20">便携操作</TextBlock>
         <StackPanel Orientation="Horizontal" Spacing="10">
+          <Button Command="{Binding DowngradeApp}" IsEnabled="{Binding PatchDowngradeAvailable }">一键降级</Button>
+          <TextBlock VerticalAlignment="Center" FontSize="12">通过差异文件来降级游戏，游戏必须为1.34.2以上版本并且未打补丁</TextBlock>
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Spacing="10">
           <Button Command="{Binding UninstallAndInstall}" IsEnabled="{Binding Locker.IsFree}">更换游戏版本</Button>
           <TextBlock VerticalAlignment="Center" FontSize="12">卸载游戏，然后安装指定的游戏APK</TextBlock>
         </StackPanel>

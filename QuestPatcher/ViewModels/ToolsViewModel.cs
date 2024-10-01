@@ -7,6 +7,7 @@ using Avalonia.Controls;
 using QuestPatcher.Core;
 using QuestPatcher.Core.Modding;
 using QuestPatcher.Core.Models;
+using QuestPatcher.Core.Utils;
 using QuestPatcher.Models;
 using QuestPatcher.Resources;
 using QuestPatcher.Services;
@@ -35,6 +36,17 @@ namespace QuestPatcher.ViewModels
                     Config.Language = value;
                     ShowLanguageChangeDialog();
                 }
+            }
+        }
+        
+        public bool PatchDowngradeAvailable
+        {
+            get
+            {
+                var app = _installManager.InstalledApp;
+                return Locker.IsFree && Config.AppId == SharedConstants.BeatSaberPackageID 
+                       && app is {IsModded: false} && app.SemVersion != null 
+                       && app.SemVersion > SharedConstants.BeatSaberPreAssetsRefactorVersion;
             }
         }
 
@@ -78,7 +90,46 @@ namespace QuestPatcher.ViewModels
                 _isAdbLogging = false;
                 this.RaisePropertyChanged(nameof(AdbButtonText));
             };
+            
+            Locker.PropertyChanged += (_, args) =>
+            {
+                if (args.PropertyName == nameof(Locker.IsFree))
+                {
+                    this.RaisePropertyChanged(nameof(PatchDowngradeAvailable));
+                }
+            };
+            
+            _installManager.PropertyChanged += (_, args) =>
+            {
+                if (args.PropertyName == nameof(_installManager.InstalledApp))
+                {
+                    this.RaisePropertyChanged(nameof(PatchDowngradeAvailable));
+                    SubscribeToApkEvents();
+                }
+            };
+            
+            SubscribeToApkEvents();
         }
+        
+        private void SubscribeToApkEvents()
+        {
+            var apk = _installManager.InstalledApp;
+            if (apk == null) return;
+            
+            apk.PropertyChanged += (_, args) =>
+            {
+                if (args.PropertyName == nameof(ApkInfo.IsModded) || args.PropertyName == nameof(ApkInfo.SemVersion))
+                {
+                    this.RaisePropertyChanged(nameof(PatchDowngradeAvailable));
+                }
+            };
+        }
+
+        public void DowngradeApp()
+        {
+            _uiService.OpenDowngradeMenu();
+        }
+        
         public async void UninstallAndInstall()
         {
             await _browseManager.UninstallAndInstall();
