@@ -261,7 +261,7 @@ namespace QuestPatcher.Services
         public void OpenDowngradeMenu()
         {
             Window downgradeWindow = new DowngradeWindow();
-            var vm = new DowngradeViewModel(downgradeWindow, Config, InstallManager, DowngradeManger);
+            var vm = new DowngradeViewModel(downgradeWindow, Config, InstallManager, DowngradeManger, _operationLocker!);
             downgradeWindow.DataContext = vm;
             downgradeWindow.WindowStartupLocation = WindowStartupLocation.CenterOwner;
             _ = downgradeWindow.ShowDialog(_mainWindow);

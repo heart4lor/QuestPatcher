@@ -26,8 +26,9 @@
           <ProgressBar Width="100" IsIndeterminate="True" IsVisible="{Binding IsLoading}"/>
           <!-- <Button Content="刷新版本" Command="{Binding LoadVersions}" HorizontalAlignment="Center"/> -->
           <TextBlock TextAlignment="Center" FontSize="14" TextWrapping="Wrap" Text="选择目标版本"/>
-          <ComboBox SelectedItem="{Binding SelectedToVersion}" 
-                    ItemsSource="{Binding AvailableToVersions}" 
+          <ComboBox SelectedItem="{Binding SelectedToVersion}"
+                    ItemsSource="{Binding AvailableToVersions}"
+                    IsEnabled="{Binding !IsLoading}"
                     HorizontalAlignment="Center" MinWidth="160">
             <ComboBox.ItemTemplate>
               <DataTemplate>
@@ -35,7 +36,7 @@
               </DataTemplate>
             </ComboBox.ItemTemplate>
           </ComboBox>
-          <Button Content="一键降级" Command="{Binding Downgrade}" HorizontalAlignment="Center"/>
+          <Button Content="一键降级" Command="{Binding Downgrade}" HorizontalAlignment="Center" IsEnabled="{Binding !IsLoading}"/>
         </StackPanel>
       </DockPanel>
     </ExperimentalAcrylicBorder>

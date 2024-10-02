@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Reactive;
 using System.Reactive.Linq;
@@ -8,6 +9,7 @@ using DynamicData;
 using QuestPatcher.Core;
 using QuestPatcher.Core.Downgrading;
 using QuestPatcher.Core.Models;
+using QuestPatcher.Models;
 using ReactiveUI;
 using Serilog;
 
@@ -20,6 +22,8 @@ namespace QuestPatcher.ViewModels
         private readonly DowngradeManger _downgradeManger;
         
         private readonly InstallManager _installManager;
+        
+        private readonly OperationLocker _locker;
 
         private bool _isLoading = true;
         
@@ -39,14 +43,22 @@ namespace QuestPatcher.ViewModels
             }
         }
 
-        public DowngradeViewModel(Window window, Config config, InstallManager installManager, DowngradeManger downgradeManger)
+        public DowngradeViewModel(Window window, Config config, InstallManager installManager, DowngradeManger downgradeManger, OperationLocker locker)
         {
             _window = window;
             _config = config;
             _installManager = installManager;
             _downgradeManger = downgradeManger;
+            _locker = locker;
             
             window.Opened += async (sender, args) => await LoadVersions();
+            window.Closing += (sender, args) =>
+            {
+                if (IsLoading)
+                {
+                    args.Cancel = true;
+                }
+            };
         }
 
         public async Task LoadVersions()
@@ -68,11 +80,42 @@ namespace QuestPatcher.ViewModels
             IsLoading = false;
         }
         
-        public void Downgrade()
+        public async Task Downgrade()
         {
             Log.Debug("Selected version: {SelectedVersion}", SelectedToVersion);
             if (string.IsNullOrWhiteSpace(SelectedToVersion)) return;
-            // _downgradeManger.Downgrade();
+            IsLoading = true;
+            try
+            {
+                _locker.StartOperation();
+                await _downgradeManger.DowngradeApp(_installManager.InstalledApp!.Version, SelectedToVersion);
+                IsLoading = false;
+                var diglog = new DialogBuilder
+                {
+                    Title = "Downgrade Succeeded",
+                    Text = "Now you can patch and mod the app.",
+                    HideCancelButton = true
+                };
+                await diglog.OpenDialogue();
+            }
+            catch (Exception e)
+            {
+                var diglog = new DialogBuilder
+                {
+                    Title = "Downgrade failed",
+                    Text = "An error occurred while downgrading the app. Please check the logs for more information.",
+                    HideCancelButton = true
+                };
+                
+                diglog.WithException(e);
+                await diglog.OpenDialogue();
+            }
+            finally
+            {
+                _locker.FinishOperation();
+                IsLoading = false;
+                _window.Close();
+            }
         }
     }
 }
