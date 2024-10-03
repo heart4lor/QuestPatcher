@@ -30,8 +30,8 @@ namespace QuestPatcher.Core.Downgrading
         private readonly HttpClient _httpClient = new();
         
         private bool _loaded = false;
-        
-        private bool _loading = false;
+
+        private Task<bool>? _loadingTask;
 
         public DowngradeManger(InstallManager installManager, ExternalFilesDownloader filesDownloader, AndroidDebugBridge debugBridge, SpecialFolders specialFolders)
         {
@@ -41,32 +41,40 @@ namespace QuestPatcher.Core.Downgrading
             _outputFolder = specialFolders.DowngradeFolder;
         }
 
-        public async Task<bool> LoadAvailableDowngrades()
+        public Task<bool> LoadAvailableDowngrades(bool refresh = false)
         {
-            if (_loaded || _loading) return true;
-            _loading = true;
-            _loaded = false;
-            bool success = false;
-            try
+            if (_loaded && !refresh) return Task.FromResult(true);
+
+            return Task.Run(async () =>
             {
-                success = await Load();
-            }
-            catch (Exception e)
-            {
-                Log.Error(e, "Failed to load downgrade index");
-            }
-            finally
-            {   
-                _loaded = success;
-                _loading = false;
-            }
-            
-            return success;
+                try
+                {
+                    var task = _loadingTask;
+                    if (task != null)
+                    {
+                        return await task;
+                    }
+                    
+                    task = Load();
+                    _loadingTask = task;
+                    return await task;
+                }
+                catch (Exception e)
+                {
+                    Log.Error(e, "Failed to load downgrade index: {Message}", e.Message);
+                    return false;
+                }
+                finally
+                {
+                    _loadingTask = null;
+                }
+            });
         }
 
         private async Task<bool> Load()
         {
             Log.Information("Loading downgrade index...");
+            _loaded = false;
             _availablePaths.Clear();
             // Load available downgrades
             string indexJson = await _httpClient.GetStringAsync(IndexUrl);
@@ -75,7 +83,6 @@ namespace QuestPatcher.Core.Downgrading
             {
                 Log.Warning("Failed to deserialize downgrade index");
                 return false;
-                _loading = false;
             }
 
             Log.Debug("Deserialized {Count} app diffs", appDiffs.Count);
@@ -94,6 +101,7 @@ namespace QuestPatcher.Core.Downgrading
             }
             
             Log.Debug("Downgrade index loaded");
+            _loaded = true;
             return true;
         }
 
