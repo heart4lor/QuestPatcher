@@ -23,13 +23,13 @@ namespace QuestPatcher.Core.Downgrading.Models
         public string FileName { get; set; }
 
         [JsonPropertyName("file_crc")]
-        public long FileCrc { get; set; }
+        public uint FileCrc { get; set; }
 
         [JsonPropertyName("output_file_name")]
         public string OutputFileName { get; set; }
 
         [JsonPropertyName("output_crc")]
-        public long OutputCrc { get; set; }
+        public uint OutputCrc { get; set; }
 
         [JsonPropertyName("output_size")]
         public long OutputSize { get; set; }

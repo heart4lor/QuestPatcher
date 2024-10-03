@@ -14,6 +14,7 @@ namespace QuestPatcher.Core.Downgrading
     public class DowngradeManger
     {
         private const string IndexUrl = @"https://github.com/Lauriethefish/mbf-diffs/releases/download/1.0.0/index.json";
+        private const string Crc32Url = @"https://github.com/Lauriethefish/mbf-diffs/releases/download/1.0.0/assets.crc32.json";
 
         private const string DiffUrlBase = @"https://github.com/Lauriethefish/mbf-diffs/releases/download/1.0.0/";
 
@@ -26,6 +27,8 @@ namespace QuestPatcher.Core.Downgrading
         private readonly string _outputFolder;
 
         private readonly IDictionary<string, IList<AppDiff>> _availablePaths = new Dictionary<string, IList<AppDiff>>();
+        
+        private readonly IDictionary<string, uint> _assetCrc32 = new Dictionary<string, uint>();
 
         private readonly HttpClient _httpClient = new();
         
@@ -76,6 +79,21 @@ namespace QuestPatcher.Core.Downgrading
             Log.Information("Loading downgrade index...");
             _loaded = false;
             _availablePaths.Clear();
+            _assetCrc32.Clear();
+            // Load asset crc32
+            string crc32Json = await _httpClient.GetStringAsync(Crc32Url);
+            var crc32Dict = JsonSerializer.Deserialize<IDictionary<string, uint>>(crc32Json);
+            if (crc32Dict == null)
+            {
+                Log.Warning("Failed to deserialize asset crc32");
+                return false;
+            }
+
+            foreach (var pair in crc32Dict)
+            {
+                _assetCrc32.Add(pair);
+            }
+            
             // Load available downgrades
             string indexJson = await _httpClient.GetStringAsync(IndexUrl);
             var appDiffs = JsonSerializer.Deserialize<IList<AppDiff>>(indexJson);
@@ -136,8 +154,14 @@ namespace QuestPatcher.Core.Downgrading
         {
             Log.Information("Starting downgrade from {FromVersion} to {ToVersion}", appDiff.FromVersion, appDiff.ToVersion);
             
+            // Check apk crc
+            if (!await HashUtil.CheckCrc32Async(_installManager.InstalledApp!.Path, appDiff.ApkDiff.FileCrc))
+            {
+                Log.Error("Apk file has incorrect CRC, is the apk not original?");
+                throw new DowngradeException("Apk file is corrupted");
+            }
+            
             // Download and apply diffs
-            // TODO check apk crc
             string apkPath = await PatchFile(appDiff.ApkDiff, _installManager.InstalledApp!.Path);
             
             foreach (var fileDiff in appDiff.ObbDiffs)
@@ -175,14 +199,20 @@ namespace QuestPatcher.Core.Downgrading
                 Log.Error(e, "Failed to download obb file {ObbName}", fileDiff.FileName);
                 throw new DowngradeException("Failed to download obb file", e);
             }
-            
-            // TODO check crc
-            return path != null;
+
+            if (path == null) return false;
+            bool match = await HashUtil.CheckCrc32Async(path, fileDiff.FileCrc);
+            if (!match)
+            {
+                Log.Error("Obb file {FileName} has incorrect CRC", fileDiff.FileName);
+                return false;
+            }
+            return true;
         }
         
         private async Task<string> PatchFile(FileDiff fileDiff, string? sourcePathOverride = null)
         {
-            Log.Information("Patch file {FileName} with {DiffName}", fileDiff.FileName, fileDiff.DiffName);
+            Log.Information("Patching file {FileName} with {DiffName}", fileDiff.FileName, fileDiff.DiffName);
             string diffPath = Path.Combine(_outputFolder, fileDiff.DiffName);
             string sourcePath = sourcePathOverride ?? Path.Combine(_outputFolder, fileDiff.FileName);
             string outputPath = Path.Combine(_outputFolder, fileDiff.OutputFileName);
@@ -190,8 +220,22 @@ namespace QuestPatcher.Core.Downgrading
             // Download the diff file
             string uri = $"{DiffUrlBase}{fileDiff.DiffName}";
             _ = await _filesDownloader.DownloadUri(uri, diffPath);
+            // check diff file crc
+            if (!await HashUtil.CheckCrc32Async(diffPath, _assetCrc32[fileDiff.DiffName]))
+            {
+                Log.Error("Diff file {DiffName} has incorrect CRC", fileDiff.DiffName);
+                throw new DowngradeException("Diff file is corrupted");
+            }
 
             await FilePatcher.PatchFileAsync(sourcePath, outputPath, diffPath);
+            
+            // check output file crc
+            if (!await HashUtil.CheckCrc32Async(outputPath, fileDiff.OutputCrc))
+            {
+                Log.Error("Patched output file {FileName} has incorrect CRC", fileDiff.OutputFileName);
+                throw new DowngradeException("Patched output file is corrupted");
+            }
+            
             return outputPath;
         }
         

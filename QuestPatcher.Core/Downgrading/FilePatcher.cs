@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 
 namespace QuestPatcher.Core.Downgrading
 {
-    public class FilePatcher
+    public static class FilePatcher
     {
         private static void PatchFile(string inputPath, string outputPath, string diffPath)
         {

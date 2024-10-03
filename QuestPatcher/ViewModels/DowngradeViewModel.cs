@@ -130,6 +130,7 @@ namespace QuestPatcher.ViewModels
             }
             catch (Exception e)
             {
+                Log.Error(e, "Downgrade failed with exception: {Exception}", e.Message);
                 var dialog = new DialogBuilder
                 {
                     Title = "降级失败",
