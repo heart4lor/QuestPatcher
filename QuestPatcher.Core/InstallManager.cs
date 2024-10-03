@@ -286,7 +286,7 @@ namespace QuestPatcher.Core
             
             string destinationPath = Path.Combine(destinationFolder, obbName);
             await _debugBridge.DownloadFile(obbPath, destinationPath);
-            return obbPath;
+            return destinationPath;
         }
         
         public async Task ReplaceObbFile(string oldObbName, string newObbName, string sourcePath)
