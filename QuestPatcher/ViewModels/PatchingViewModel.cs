@@ -64,15 +64,16 @@ namespace QuestPatcher.ViewModels
                 if (coreMods.Count == 0)
                 {
                     Log.Warning("Trying to patch game without available core mods!");
+                    var apk = _installManager.InstalledApp;
                     var builder = new DialogBuilder
                     {
                         Title = "没有核心MOD",
-                        Text = $"您正在尝试打补丁的游戏版本 {_installManager.InstalledApp?.Version ?? "null"} 暂时还没有可用的核心MOD!"
+                        Text = $"当前游戏版本 {apk?.SemVersion?.BaseVersion().ToString() ?? apk?.Version ?? "null"} 暂时还没有可用的核心MOD\n确定要继续打补丁吗？"
                     };
 
                     if (DowngradeManger.DowngradeFeatureAvailable(_installManager.InstalledApp, Config.AppId))
                     {
-                        builder.Text += "\n您可以使用 工具->一键降级 来降级游戏";
+                        builder.Text += "\n\n您可以通过工具页面的“一键降级”按钮来自动降级游戏, 无需APK文件！";
                     }
                     
                     builder.OkButton.Text = Strings.Generic_ContinueAnyway;
