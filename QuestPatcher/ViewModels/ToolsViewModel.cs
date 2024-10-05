@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using QuestPatcher.Core;
+using QuestPatcher.Core.Downgrading;
 using QuestPatcher.Core.Modding;
 using QuestPatcher.Core.Models;
 using QuestPatcher.Core.Utils;
@@ -44,9 +45,7 @@ namespace QuestPatcher.ViewModels
             get
             {
                 var app = _installManager.InstalledApp;
-                return Locker.IsFree && Config.AppId == SharedConstants.BeatSaberPackageID 
-                       && app is {IsModded: false} && app.SemVersion != null 
-                       && app.SemVersion > SharedConstants.BeatSaberPreAssetsRefactorVersion;
+                return Locker.IsFree && DowngradeManger.DowngradeFeatureAvailable(app, Config.AppId);
             }
         }
 

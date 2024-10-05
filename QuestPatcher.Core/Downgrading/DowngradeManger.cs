@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
 using QuestPatcher.Core.Downgrading.Models;
+using QuestPatcher.Core.Models;
 using QuestPatcher.Core.Utils;
 using Serilog;
 
@@ -17,6 +18,8 @@ namespace QuestPatcher.Core.Downgrading
         private const string Crc32Url = @"https://github.com/Lauriethefish/mbf-diffs/releases/download/1.0.0/assets.crc32.json";
 
         private const string DiffUrlBase = @"https://github.com/Lauriethefish/mbf-diffs/releases/download/1.0.0/";
+        
+        private readonly Config _config;
 
         private readonly InstallManager _installManager;
 
@@ -36,8 +39,9 @@ namespace QuestPatcher.Core.Downgrading
 
         private Task<bool>? _loadingTask;
 
-        public DowngradeManger(InstallManager installManager, ExternalFilesDownloader filesDownloader, AndroidDebugBridge debugBridge, SpecialFolders specialFolders)
+        public DowngradeManger(Config config, InstallManager installManager, ExternalFilesDownloader filesDownloader, AndroidDebugBridge debugBridge, SpecialFolders specialFolders)
         {
+            _config = config;
             _installManager = installManager;
             _filesDownloader = filesDownloader;
             _debugBridge = debugBridge;
@@ -131,9 +135,26 @@ namespace QuestPatcher.Core.Downgrading
                 : new List<string>();
         }
         
-        public async Task DowngradeApp(string fromVersion, string toVersion)
+        /// <summary>
+        /// Downgrade the installed app to the specified version.
+        /// </summary>
+        /// <param name="toVersion">The version to downgrade to.</param>
+        /// <exception cref="DowngradeException">When downgrade failed</exception>
+        public async Task DowngradeApp(string toVersion)
         {
-            // assume the app is installed and is beat saber
+            string? fromVersion = _installManager.InstalledApp?.Version;
+            if (fromVersion == null)
+            {
+                Log.Error("Cannot downgrade app that is not installed!");
+                throw new DowngradeException("App is not installed");
+            }
+            
+            if (_config.AppId != SharedConstants.BeatSaberPackageID)
+            {
+                Log.Error("Cannot downgrade app that is not Beat Saber!");
+                throw new DowngradeException("Current app is not Beat Saber");
+            }
+            
             if (!_availablePaths.TryGetValue(fromVersion, out var paths))
             {
                 Log.Warning("No downgrade path found for {FromVersion}", fromVersion);
@@ -335,6 +356,19 @@ namespace QuestPatcher.Core.Downgrading
             await _installManager.NewApkInstalled(apkPath);
 
             Log.Information("App Downgraded successfully");
+        }
+
+        /// <summary>
+        /// Whether the downgrade feature is available for the current app.
+        /// Does not guarantee that downgrades are available for this installed version.
+        ///
+        /// Requirements: Current app is Beat Saber, not modded, and is > 1.34.2
+        /// </summary>
+        public static bool DowngradeFeatureAvailable(ApkInfo? app, string packageId)
+        {
+            return packageId == SharedConstants.BeatSaberPackageID 
+                   && app is {IsModded: false} && app.SemVersion != null 
+                   && app.SemVersion > SharedConstants.BeatSaberPreAssetsRefactorVersion;
         }
     }
 }

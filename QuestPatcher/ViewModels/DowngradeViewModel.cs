@@ -90,7 +90,7 @@ namespace QuestPatcher.ViewModels
                 var dialog = new DialogBuilder
                 {
                     Title = "无法降级",
-                    Text = $"{_installManager.InstalledApp!.Version} 暂无可用的降级版本",
+                    Text = $"{_installManager.InstalledApp!.Version} 暂无可用的降级版本\n刚刚更新的最新版游戏可能需要一些时间才会有可用降级",
                     HideCancelButton = true
                 };
                 await dialog.OpenDialogue(_window);
@@ -115,23 +115,22 @@ namespace QuestPatcher.ViewModels
             Log.Debug("Selected version: {SelectedVersion}", SelectedToVersion);
             if (string.IsNullOrWhiteSpace(SelectedToVersion)) return;
             IsLoading = true;
+            DialogBuilder? dialog = null;
             try
             {
                 _locker.StartOperation();
-                await _downgradeManger.DowngradeApp(_installManager.InstalledApp!.Version, SelectedToVersion);
-                IsLoading = false;
-                var dialog = new DialogBuilder
+                await _downgradeManger.DowngradeApp(SelectedToVersion);
+                dialog = new DialogBuilder
                 {
                     Title = "降级成功",
                     Text = "现在可以给游戏打补丁装Mod了！",
                     HideCancelButton = true
                 };
-                await dialog.OpenDialogue(_window);
             }
             catch (Exception e)
             {
                 Log.Error(e, "Downgrade failed with exception: {Exception}", e.Message);
-                var dialog = new DialogBuilder
+                dialog = new DialogBuilder
                 {
                     Title = "降级失败",
                     Text = "检查日志以获取详细信息",
@@ -139,12 +138,15 @@ namespace QuestPatcher.ViewModels
                 };
                 
                 dialog.WithException(e);
-                await dialog.OpenDialogue(_window);
             }
             finally
             {
                 _locker.FinishOperation();
                 IsLoading = false;
+                if (dialog != null)
+                {
+                    await dialog.OpenDialogue(_window);
+                }
                 _window.Close();
             }
         }

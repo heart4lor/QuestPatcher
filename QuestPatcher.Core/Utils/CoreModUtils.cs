@@ -21,6 +21,8 @@ public class CoreModUtils
     {
         
     }
+    
+    public bool IsCoreModsLoaded => _coreModsMap != null;
 
     public string PackageId
     {
@@ -43,6 +45,7 @@ public class CoreModUtils
 
     private CancellationTokenSource? _cancellationTokenSource;
     
+    //TODO indicate loading success/failure
     public async Task RefreshCoreMods()
     {
         Log.Information("Refreshing Core Mods");

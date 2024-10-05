@@ -63,7 +63,7 @@ namespace QuestPatcher.Core
             ModManager.RegisterModProvider(new QModProvider(ModManager, Config, DebugBridge, FilesDownloader));
             PatchingManager = new PatchingManager(Config, DebugBridge, SpecialFolders, FilesDownloader, Prompter, ModManager, InstallManager);
             InfoDumper = new InfoDumper(SpecialFolders, DebugBridge, ModManager, _configManager, InstallManager);
-            DowngradeManger = new DowngradeManger(InstallManager, FilesDownloader, DebugBridge, SpecialFolders);
+            DowngradeManger = new DowngradeManger(Config, InstallManager, FilesDownloader, DebugBridge, SpecialFolders);
 
             Log.Debug("QuestPatcherService constructed (QuestPatcher version {QuestPatcherVersion})", VersionUtil.QuestPatcherVersion);
         }
