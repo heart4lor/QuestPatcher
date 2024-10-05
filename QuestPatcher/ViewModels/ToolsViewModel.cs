@@ -136,8 +136,7 @@ namespace QuestPatcher.ViewModels
 
         public async void InstallServerSwitcher()
         {
-            // TODO Sky: download apk here then call normal install
-            await _browseManager.InstallApkFromUrl("https://ganbei-hot-update-1258625969.file.myqcloud.com/questpatcher_mirror/Icey-latest.apk");
+            await _browseManager.InstallApkFromUrl("https://ganbei-hot-update-1258625969.file.myqcloud.com/questpatcher_mirror/Icey-latest.apk?_=" + DateTime.Now.ToFileTime(), "Icey-latest.apk");
         }
 
         public async void UninstallApp()

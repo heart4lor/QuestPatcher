@@ -118,33 +118,48 @@ namespace QuestPatcher
             return true;
         }
         
-        public async Task InstallApkFromUrl(string url)
+        public async Task InstallApkFromUrl(string url, string? saveFileName = null)
         {
+            DialogBuilder dialog = new()
             {
-                DialogBuilder builder1 = new()
-                {
-                    Title = "即将开始安装",
-                    Text = "安装可能需要两分钟左右，该过程中将暂时无法点击软件窗口，请耐心等待，\n点击下方“好的”按钮，即可开始安装。",
-                    HideCancelButton = true
-                };
-                builder1.OkButton.ReturnValue = false;
-                await builder1.OpenDialogue(_mainWindow);
-            }
+                Title = "即将开始安装",
+                Text = "安装可能需要两分钟左右，该过程中将暂时无法点击软件窗口，请耐心等待，\n点击下方“好的”按钮，即可开始安装。",
+                HideCancelButton = true
+            };
+            if (!await dialog.OpenDialogue(_mainWindow)) return;
+
             _locker.StartOperation();
-            WebClient client = new();
-            File.Delete(_specialFolders.TempFolder + "/apkToInstall.apk");
-            await client.DownloadFileTaskAsync(url+"?_="+ DateTime.Now.ToFileTime(), _specialFolders.TempFolder+"/apkToInstall.apk");
-            await _installManager.InstallApp( _specialFolders.TempFolder + "/apkToInstall.apk");
-            _locker.FinishOperation();
+
+            try
             {
+                string path = Path.Combine(_specialFolders.TempFolder, saveFileName ?? "apkToInstall.apk");
+                if (File.Exists(path)) File.Delete(path);
+                await _filesDownloader.DownloadUri(url, path, saveFileName ?? "Apk");
+                await _installManager.InstallApp(path);
                 DialogBuilder builder1 = new()
                 {
                     Title = "安装已完成！",
                     Text = "点击确定以继续",
                     HideCancelButton = true
                 };
-                builder1.OkButton.ReturnValue = false;
+                builder1.OkButton.Text = "确定";
                 await builder1.OpenDialogue(_mainWindow);
+            }
+            catch (Exception e)
+            {
+                Log.Error(e, "Failed to install APK from URL: {Message}", e.Message);
+                DialogBuilder builder = new()
+                {
+                    Title = "出错了！",
+                    Text = "APK下载或安装过程中出现了一个意料之外的错误。",
+                    HideCancelButton = true
+                };
+                builder.WithException(e);
+                await builder.OpenDialogue(_mainWindow);
+            }
+            finally
+            {
+                _locker.FinishOperation();
             }
         }
         
