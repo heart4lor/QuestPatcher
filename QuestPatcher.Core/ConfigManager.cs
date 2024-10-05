@@ -48,7 +48,7 @@ namespace QuestPatcher.Core
                     _loadedConfig = LoadConfig();
                     _loadedConfig.UseMirrorDownload = false; // force not using mirror
                     _loadedConfig.Language = Language.ChineseSimplified; // force Chinese Simplified
-                    _loadedConfig.AppId = CoreModUtils.BeatSaberPackageID; // force beat saber
+                    _loadedConfig.AppId = SharedConstants.BeatSaberPackageID; // force beat saber
                 }
                 catch (Exception ex)
                 {

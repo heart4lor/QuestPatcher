@@ -226,7 +226,7 @@ namespace QuestPatcher.Services
         /// </summary>
         public async Task OpenChangeAppMenu(bool quitIfNotSelected)
         {
-            Config.AppId = CoreModUtils.BeatSaberPackageID;
+            Config.AppId = SharedConstants.BeatSaberPackageID;
             DialogBuilder builder = new()
             {
                 Title = "该改版无法Mod其他应用！",
@@ -256,6 +256,15 @@ namespace QuestPatcher.Services
             menuWindow.DataContext = new RepatchWindowViewModel(_patchingView!, Config, menuWindow);
             menuWindow.WindowStartupLocation = WindowStartupLocation.CenterOwner;
             await menuWindow.ShowDialog(_mainWindow);
+        }
+        
+        public void OpenDowngradeMenu()
+        {
+            Window downgradeWindow = new DowngradeWindow();
+            var vm = new DowngradeViewModel(downgradeWindow, Config, InstallManager, DowngradeManger, _operationLocker!);
+            downgradeWindow.DataContext = vm;
+            downgradeWindow.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+            _ = downgradeWindow.ShowDialog(_mainWindow);
         }
 
         //TODO Sky: avoid making it public

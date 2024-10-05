@@ -3,8 +3,10 @@ using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 using QuestPatcher.Core;
+using QuestPatcher.Core.Downgrading;
 using QuestPatcher.Core.Models;
 using QuestPatcher.Core.Patching;
+using QuestPatcher.Core.Utils;
 using QuestPatcher.Models;
 using QuestPatcher.Resources;
 using ReactiveUI;
@@ -55,6 +57,33 @@ namespace QuestPatcher.ViewModels
 
         public async void StartPatching()
         {
+            // TODO load core mod if not loaded
+            if (CoreModUtils.Instance.IsCoreModsLoaded)
+            {
+                var coreMods = CoreModUtils.Instance.GetCoreMods(_installManager.InstalledApp?.Version ?? "");
+                if (coreMods.Count == 0)
+                {
+                    Log.Warning("Trying to patch game without available core mods!");
+                    var builder = new DialogBuilder
+                    {
+                        Title = "没有核心MOD",
+                        Text = $"您正在尝试打补丁的游戏版本 {_installManager.InstalledApp?.Version ?? "null"} 暂时还没有可用的核心MOD!"
+                    };
+
+                    if (DowngradeManger.DowngradeFeatureAvailable(_installManager.InstalledApp, Config.AppId))
+                    {
+                        builder.Text += "\n您可以使用 工具->一键降级 来降级游戏";
+                    }
+                    
+                    builder.OkButton.Text = Strings.Generic_ContinueAnyway;
+                    if (!await builder.OpenDialogue(_mainWindow))
+                    {
+                        Log.Debug("Patching not started due to no core mods");
+                        return;
+                    }
+                }
+            }
+            
             if (Config.PatchingOptions.FlatScreenSupport)
             {
                 // Disable VR requirement apparently causes infinite load
@@ -64,7 +93,7 @@ namespace QuestPatcher.ViewModels
                     Text = "您在补丁选项中禁用了VR要求，这可能会导致出现错误，例如启动游戏时无限加载"
                 };
                 
-                builder.OkButton.Text = "仍然继续";
+                builder.OkButton.Text = Strings.Generic_ContinueAnyway;
                 if (!await builder.OpenDialogue(_mainWindow))
                 {
                     return;

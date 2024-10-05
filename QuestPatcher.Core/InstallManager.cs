@@ -275,6 +275,31 @@ namespace QuestPatcher.Core
             // Move the obb backup to the original path.
             await _debugBridge.Move(backupPath, ObbPath);
         }
+        
+        public async Task<string?> DownloadObbFile(string obbName, string destinationFolder)
+        {
+            string obbPath = Path.Combine(ObbPath, obbName);
+            if (!await _debugBridge.Exists(obbPath))
+            {
+                return null;
+            }
+            
+            string destinationPath = Path.Combine(destinationFolder, obbName);
+            await _debugBridge.DownloadFile(obbPath, destinationPath);
+            return destinationPath;
+        }
+        
+        public async Task ReplaceObbFile(string oldObbName, string newObbName, string sourcePath)
+        {
+            string oldPath = Path.Combine(ObbPath, oldObbName);
+            if (await _debugBridge.Exists(oldPath))
+            {
+                await _debugBridge.DeleteFile(oldPath);
+            }
+            
+            string newPath = Path.Combine(ObbPath, newObbName);
+            await _debugBridge.UploadFile(sourcePath, newPath);
+        }
                 
         /// <summary>
         /// Uninstalls the current app if installed and then install a new app
