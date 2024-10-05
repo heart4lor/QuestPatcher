@@ -65,17 +65,13 @@ namespace QuestPatcher
         
         public async Task<bool> AskToInstallApk(bool deleteMods = true, bool lockUi = true)
         {
-            var dialog = new OpenFileDialog
+            var options = new FilePickerOpenOptions
             {
-                AllowMultiple = false
+                AllowMultiple = false, FileTypeFilter = new[] { new FilePickerFileType("Beat Saber APK") { Patterns = new[] { "*.apk" } } }
             };
-            FileDialogFilter filter=new();
-            filter.Extensions.Add("apk");
-            filter.Name = "Beat Saber APKs";
-            dialog.Filters.Add(filter);
-            var files = await dialog.ShowAsync(_mainWindow);
-            if (files == null || files.Length == 0) return false;
-            var file = files[0] ?? "";
+            var files = await _mainWindow.StorageProvider.OpenFilePickerAsync(options);
+            if (files.Count == 0) return false;
+            string file = files[0].Path.LocalPath;
             if (!file.EndsWith(".apk"))
             {
                 DialogBuilder builder1 = new()
