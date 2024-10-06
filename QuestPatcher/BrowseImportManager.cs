@@ -718,15 +718,15 @@ namespace QuestPatcher
             
         }
                 
-        private async Task<bool> InstallMissingCoreMods(IList<CoreModUtils.CoreMod> mods) {
-            using var client = new WebClient();
-            //TODO Sky: use AttemptImportUri & FileDownloader from upstream
+        private async Task<bool> InstallMissingCoreMods(IList<CoreModUtils.CoreMod> mods) 
+        {
             foreach(var mod in mods)
             {
-                var modUrl = mod.DownloadUrl.ToString();
+                string modUrl = mod.DownloadUrl.ToString();
                 if (_uiService.Config.UseMirrorDownload) modUrl = await DownloadMirrorUtil.Instance.GetMirrorUrl(modUrl);
-                await client.DownloadFileTaskAsync(modUrl, _specialFolders.TempFolder + "/coremod_tmp.qmod");
-                await TryImportMod(new FileImportInfo(_specialFolders.TempFolder + "/coremod_tmp.qmod"), true,true);
+                string path = Path.Combine(_specialFolders.TempFolder, mod.Filename ?? "coremod_tmp.qmod");
+                await _filesDownloader.DownloadUri(modUrl, path, mod.Filename ?? mod.Id);
+                await TryImportMod(new FileImportInfo(path) { IsTemporaryFile = true }, false, false);
             }
             await _modManager.SaveMods();
             return true;
@@ -737,10 +737,12 @@ namespace QuestPatcher
         /// Will prompt to ask the user if they want to install the mod in the case that it is outdated
         /// </summary>
         /// <param name="importInfo">Information about the mod file to import.</param>
+        /// <param name="checkCoreMods">Whether to check core mods before import the mod</param>
+        /// <param name="checkPackageVersion">Whether to check the package version indicated in the mod manifest</param>
         /// <returns>Whether or not the file could be imported as a mod</returns>
-        private async Task<bool> TryImportMod(FileImportInfo importInfo, bool avoidCoremodCheck = false,bool ignoreWrongVersion=false)
+        private async Task<bool> TryImportMod(FileImportInfo importInfo, bool checkCoreMods = true, bool checkPackageVersion = true)
         {
-            if (!avoidCoremodCheck)
+            if (checkCoreMods)
                 if (!await CheckCoreMods())
                     return false;
 
@@ -771,7 +773,7 @@ namespace QuestPatcher
             Debug.Assert(_installManager.InstalledApp != null);
 
             // Prompt the user for outdated mods instead of enabling them automatically
-            if (mod.PackageVersion != null && mod.PackageVersion != _installManager.InstalledApp.Version &&!ignoreWrongVersion)
+            if (checkPackageVersion && mod.PackageVersion != null && mod.PackageVersion != _installManager.InstalledApp.Version)
             {
                 var builder = new DialogBuilder
                 {
