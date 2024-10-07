@@ -131,7 +131,16 @@ namespace QuestPatcher.ViewModels
         
         public async void UninstallAndInstall()
         {
-            await _browseManager.UninstallAndInstall();
+            DialogBuilder builder1 = new()
+            {
+                Title = "更换游戏版本",
+                Text = "换版本会删除所有的Mod，但不会影响您的歌曲、模型资源。降级完成后您可以把对应版本的Mod重新装回去，即可继续使用这些资源。\n\n点击继续并选择目标版本的游戏APK和可选OBB即可完成更换版本",
+            };
+            builder1.OkButton.Text = "继续";
+            
+            if (!await builder1.OpenDialogue(_mainWindow)) return;
+            
+            _ = _uiService.OpenGameInstallerMenu(true);
         }
 
         public async void InstallServerSwitcher()
