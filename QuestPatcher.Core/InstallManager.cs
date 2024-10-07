@@ -316,6 +316,18 @@ namespace QuestPatcher.Core
         /// <param name="path">The path to the apk to install</param>
         public async Task ReplaceApp(string path, IReadOnlyCollection<string>? obbPaths = null)
         {
+            Log.Information("Backing up data directory");
+            string? dataBackupPath = null;
+            try
+            {
+                dataBackupPath = await CreateDataBackup();
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Failed to create data backup");
+                dataBackupPath = null; // Indicate that the backup failed
+            }
+            
             try
             {
                 if (InstalledApp != null)
@@ -331,6 +343,19 @@ namespace QuestPatcher.Core
             }
             
             await InstallApp(path, obbPaths);
+            
+            if (dataBackupPath != null)
+            {
+                Log.Information("Restoring data backup");
+                try
+                {
+                    await RestoreDataBackup(dataBackupPath);
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning(ex, "Failed to restore data backup");
+                }
+            }
         }
 
         /// <summary>
