@@ -8,7 +8,6 @@ using QuestPatcher.Core;
 using QuestPatcher.Core.Downgrading;
 using QuestPatcher.Core.Modding;
 using QuestPatcher.Core.Models;
-using QuestPatcher.Core.Utils;
 using QuestPatcher.Models;
 using QuestPatcher.Resources;
 using QuestPatcher.Services;

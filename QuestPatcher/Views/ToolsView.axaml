@@ -13,7 +13,10 @@
     <StackPanel DockPanel.Dock="Top">
       <UserControl Width="500" Margin="0 15 0 15" VerticalAlignment="Top" Content="{Binding ProgressView}" HorizontalAlignment="Center" DockPanel.Dock="Top"/>
       <StackPanel Spacing="10">
-        <TextBlock FontSize="20">便携操作</TextBlock>
+        <StackPanel Orientation="Horizontal" Spacing="15">
+          <TextBlock FontSize="20" Text="{x:Static res:Strings.Tools_Section_Tools}"/>
+          <TextBlock FontSize="10" VerticalAlignment="Bottom" FontWeight="Light" Text="{x:Static res:Strings.Tools_Section_Tools_Description}"/>
+        </StackPanel>
         <StackPanel Orientation="Horizontal" Spacing="10">
           <Button Command="{Binding DowngradeApp}" IsEnabled="{Binding PatchDowngradeAvailable }">一键降级</Button>
           <TextBlock VerticalAlignment="Center" FontSize="12">通过差异文件来降级游戏，游戏必须为1.34.2以上版本并且未打补丁</TextBlock>
@@ -25,10 +28,6 @@
         <StackPanel Orientation="Horizontal" Spacing="10">
           <Button Command="{Binding InstallServerSwitcher}" IsEnabled="{Binding Locker.IsFree}">安装Icey</Button>
           <TextBlock VerticalAlignment="Center" FontSize="12">将Icey安装到Quest</TextBlock>
-        </StackPanel>
-        <StackPanel Orientation="Horizontal" Spacing="15">
-          <TextBlock FontSize="20" Text="{x:Static res:Strings.Tools_Section_Tools}"/>
-          <TextBlock FontSize="10" VerticalAlignment="Bottom" FontWeight="Light" Text="{x:Static res:Strings.Tools_Section_Tools_Description}"/>
         </StackPanel>
         <StackPanel Orientation="Horizontal" Spacing="10">
           <Button Command="{Binding UninstallApp}" IsEnabled="{Binding Locker.IsFree}" Content="{x:Static res:Strings.Tools_Tool_UninstallApp}"/>
