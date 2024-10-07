@@ -168,15 +168,9 @@ namespace QuestPatcher
             DialogBuilder builder1 = new()
             {
                 Title = "更换游戏版本",
-                Text = "换版本会删除所有的Mod，但不会影响您的歌曲、模型资源。降级完成后您可以把对应版本的Mod重新装回去，即可继续使用这些资源。\n\n点击继续并选择目标版本的游戏APK即可完成更换版本\n如果您还没有游戏APK，可以进入网盘下载",
+                Text = "换版本会删除所有的Mod，但不会影响您的歌曲、模型资源。降级完成后您可以把对应版本的Mod重新装回去，即可继续使用这些资源。\n\n点击继续并选择目标版本的游戏APK即可完成更换版本",
             };
             builder1.OkButton.Text = "继续";
-            builder1.WithButtons(new ButtonInfo
-            {
-                Text = "进入网盘",
-                CloseDialogue = false,
-                OnClick = () => Util.OpenWebpage("https://bs.wgzeyu.com/drive/")
-            });
             
             if (!await builder1.OpenDialogue(_mainWindow)) return false;
             
