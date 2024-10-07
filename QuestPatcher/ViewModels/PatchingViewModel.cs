@@ -57,18 +57,25 @@ namespace QuestPatcher.ViewModels
 
         public async void StartPatching()
         {
+            var apk = _installManager.InstalledApp;
+            if (apk == null)
+            {
+                Log.Warning("Trying to patch game without an installed app");
+                return;
+            }
+
+            var apkSemVer = apk.SemVersion;
             // TODO load core mod if not loaded
             if (CoreModUtils.Instance.IsCoreModsLoaded)
             {
-                var coreMods = CoreModUtils.Instance.GetCoreMods(_installManager.InstalledApp?.Version ?? "");
+                var coreMods = CoreModUtils.Instance.GetCoreMods(apk.Version);
                 if (coreMods.Count == 0)
                 {
                     Log.Warning("Trying to patch game without available core mods!");
-                    var apk = _installManager.InstalledApp;
                     var builder = new DialogBuilder
                     {
                         Title = "没有核心MOD",
-                        Text = $"当前游戏版本 {apk?.SemVersion?.BaseVersion().ToString() ?? apk?.Version ?? "null"} 暂时还没有可用的核心MOD\n确定要继续打补丁吗？"
+                        Text = $"当前游戏版本 {apkSemVer?.BaseVersion().ToString() ?? apk.Version} 暂时还没有可用的核心MOD\n确定要继续打补丁吗？"
                     };
 
                     if (DowngradeManger.DowngradeFeatureAvailable(_installManager.InstalledApp, Config.AppId))
@@ -80,6 +87,36 @@ namespace QuestPatcher.ViewModels
                     if (!await builder.OpenDialogue(_mainWindow))
                     {
                         Log.Debug("Patching not started due to no core mods");
+                        return;
+                    }
+                }
+            }
+
+            if (apkSemVer != null)
+            {
+                // check version and selected mod loader
+                var modLoader = Config.PatchingOptions.ModLoader;
+                string? text = null;
+                if (modLoader == ModLoader.QuestLoader && apkSemVer > SharedConstants.BeatSaberLastQuestLoaderVersion)
+                {
+                    text = $"当前游戏版本 {apkSemVer.BaseVersion()} 的Mod需要 Scotland2 Mod注入器，而您选择了 QuestLoader。\n这会导致Mod无法加载并且需要重新打补丁。";
+                }
+                else if (modLoader == ModLoader.Scotland2 && apkSemVer <= SharedConstants.BeatSaberLastQuestLoaderVersion)
+                {
+                    text = $"当前游戏版本 {apkSemVer.BaseVersion()} 的Mod需要 QuestLoader Mod注入器，而您选择了 Scotland2。\n这会导致Mod无法加载并且需要重新打补丁。";
+                }
+
+                if (text != null)
+                {
+                    var builder = new DialogBuilder
+                    {
+                        Title = "不匹配的Mod注入器",
+                        Text = text
+                    };
+                
+                    builder.OkButton.Text = Strings.Generic_ContinueAnyway;
+                    if (!await builder.OpenDialogue(_mainWindow))
+                    {
                         return;
                     }
                 }

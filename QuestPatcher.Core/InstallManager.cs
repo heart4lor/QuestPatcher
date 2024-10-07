@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using QuestPatcher.Axml;
 using QuestPatcher.Core.Models;
 using QuestPatcher.Core.Patching;
+using QuestPatcher.Core.Utils;
 using QuestPatcher.Zip;
 using Serilog;
 
@@ -170,7 +171,15 @@ namespace QuestPatcher.Core
             }
             Log.Information("APK is " + (is64Bit ? "64" : "32") + " bit");
 
-            InstalledApp = new ApkInfo(version, modloader, is64Bit, _currentlyInstalledPath);
+            var app = new ApkInfo(version, modloader, is64Bit, _currentlyInstalledPath);
+            if (!app.IsModded && app.SemVersion != null)
+            {
+                // Change the mod loader in patching options to the correct one for the version of beat saber
+                _config.PatchingOptions.ModLoader = app.SemVersion > SharedConstants.BeatSaberLastQuestLoaderVersion
+                    ? ModLoader.Scotland2
+                    : ModLoader.QuestLoader;
+            }
+            InstalledApp = app;
         }
 
         /// <summary>
