@@ -266,6 +266,15 @@ namespace QuestPatcher.Services
             downgradeWindow.WindowStartupLocation = WindowStartupLocation.CenterOwner;
             _ = downgradeWindow.ShowDialog(_mainWindow);
         }
+        
+        public void OpenGameInstallerMenu()
+        {
+            Window downgradeWindow = new GameInstallerWindow();
+            var vm = new GameInstallerViewModel(downgradeWindow, this, _operationLocker!, InstallManager);
+            downgradeWindow.DataContext = vm;
+            downgradeWindow.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+            _ = downgradeWindow.ShowDialog(_mainWindow);
+        }
 
         //TODO Sky: avoid making it public
         public async Task Reload()
