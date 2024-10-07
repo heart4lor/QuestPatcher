@@ -139,9 +139,8 @@ namespace QuestPatcher.ViewModels
             builder1.OkButton.Text = "继续";
             
             if (!await builder1.OpenDialogue(_mainWindow)) return;
-            // await _browseManager.UninstallAndInstall();
             
-            _uiService.OpenGameInstallerMenu();
+            _ = _uiService.OpenGameInstallerMenu(true);
         }
 
         public async void InstallServerSwitcher()

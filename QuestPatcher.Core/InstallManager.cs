@@ -314,7 +314,7 @@ namespace QuestPatcher.Core
         /// Uninstalls the current app if installed and then install a new app
         /// </summary>
         /// <param name="path">The path to the apk to install</param>
-        public async Task ReplaceApp(string path)
+        public async Task ReplaceApp(string path, IReadOnlyCollection<string>? obbPaths = null)
         {
             try
             {
@@ -330,7 +330,7 @@ namespace QuestPatcher.Core
                 Log.Warning("Continuing with installation");
             }
             
-            await _debugBridge.InstallApp(path);
+            await InstallApp(path, obbPaths);
         }
 
         /// <summary>
@@ -344,9 +344,18 @@ namespace QuestPatcher.Core
             _quit();
         }
         
-        public async Task InstallApp(string path)
+        public async Task InstallApp(string path, IReadOnlyCollection<string>? obbPaths = null)
         {
             await _debugBridge.InstallApp(path);
+            if (obbPaths != null)
+            {
+                await _debugBridge.CreateDirectory(ObbPath);
+                foreach (string obbPath in obbPaths)
+                {
+                    string obbPathOnQuest = Path.Combine(ObbPath, Path.GetFileName(obbPath));
+                    await _debugBridge.UploadFile(obbPath, obbPathOnQuest);
+                }
+            }
         }
 
         private void NotifyPropertyChanged([CallerMemberName] string propertyName = "")

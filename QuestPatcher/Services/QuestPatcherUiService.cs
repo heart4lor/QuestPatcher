@@ -126,11 +126,11 @@ namespace QuestPatcher.Services
                 };
                 
                 builder1.OkButton.Text = "安装APK";
-                if (await builder1.OpenDialogue(_mainWindow) && _browseManager != null)
+                if (await builder1.OpenDialogue(_mainWindow))
                 {
-                    //BUG Sky: it will try to lock the ui again and cause an unhandled exception
-                    //TODO Sky: proper fix without lockui parameter
-                    if (!await _browseManager!.AskToInstallApk(deleteMods:false, lockUi:false))
+                    _operationLocker.FinishOperation(); //ui will be locked when the game is installing
+                    bool success = await OpenGameInstallerMenu(false);
+                    if (!success)
                     {
                         ExitApplication();
                     }
@@ -267,17 +267,36 @@ namespace QuestPatcher.Services
             _ = downgradeWindow.ShowDialog(_mainWindow);
         }
         
-        public void OpenGameInstallerMenu()
+        /// <summary>
+        /// Open the game installer menu to install a new version of the game.
+        /// Will reload QuestPatcher if the installation is successful.
+        /// </summary>
+        /// <param name="isVersionSwitching">Whether we are switching versions or freshly installing</param>
+        /// <returns>Whether new apk is successfully installed</returns>
+        public async Task<bool> OpenGameInstallerMenu(bool isVersionSwitching)
         {
             Window downgradeWindow = new GameInstallerWindow();
-            var vm = new GameInstallerViewModel(downgradeWindow, this, _operationLocker!, InstallManager);
+            var vm = new GameInstallerViewModel(isVersionSwitching, downgradeWindow, this, _operationLocker!, InstallManager, ModManager);
             downgradeWindow.DataContext = vm;
             downgradeWindow.WindowStartupLocation = WindowStartupLocation.CenterOwner;
             _ = downgradeWindow.ShowDialog(_mainWindow);
+            bool succeeded = await vm.NewAppInstalled;
+            if (succeeded)
+            {
+                DialogBuilder builder1 = new()
+                {
+                    Title = "安装已完成！",
+                    Text = "点击确定以重启QuestPatcher",
+                    HideCancelButton = true
+                };
+                await builder1.OpenDialogue(_mainWindow);
+                await Reload();
+            }
+
+            return succeeded;
         }
 
-        //TODO Sky: avoid making it public
-        public async Task Reload()
+        private async Task Reload()
         {
             if (_loggingViewModel != null)
             {

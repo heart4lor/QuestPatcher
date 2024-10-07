@@ -63,61 +63,6 @@ namespace QuestPatcher
             };
         }
         
-        public async Task<bool> AskToInstallApk(bool deleteMods = true, bool lockUi = true)
-        {
-            var options = new FilePickerOpenOptions
-            {
-                AllowMultiple = false, FileTypeFilter = new[] { new FilePickerFileType("Beat Saber APK") { Patterns = new[] { "*.apk" } } }
-            };
-            var files = await _mainWindow.StorageProvider.OpenFilePickerAsync(options);
-            if (files.Count == 0) return false;
-            string file = files[0].Path.LocalPath;
-            if (!file.EndsWith(".apk"))
-            {
-                DialogBuilder builder1 = new()
-                {
-                    Title = "你选择的文件有误",
-                    Text = "你选择的文件有误，将不会继续安装。",
-                    HideCancelButton = true
-                };
-                await builder1.OpenDialogue(_mainWindow);
-                return false;
-            }
-
-            {
-                DialogBuilder builder1 = new()
-                {
-                    Title = "即将开始安装",
-                    Text = "安装可能需要两分钟左右，该过程中将暂时无法点击软件窗口，请耐心等待，\n点击下方“好的”按钮，即可开始安装。",
-                };
-                if (!await builder1.OpenDialogue(_mainWindow)) return false;
-            }
-            
-            if (lockUi) _locker.StartOperation();
-
-            try
-            {
-                //TODO Sky: Check deletion result and prompt retry if failed
-                if (deleteMods) await _modManager.DeleteAllMods();
-                await _installManager.ReplaceApp(file);
-            }
-            finally
-            {
-                if (lockUi) _locker.FinishOperation();
-            }
-            {
-                DialogBuilder builder1 = new()
-                {
-                    Title = "安装已完成！",
-                    Text = "点击确定以重启QuestPatcher",
-                    HideCancelButton = true
-                };
-                await builder1.OpenDialogue(_mainWindow);
-            }
-            await _uiService.Reload();
-            return true;
-        }
-        
         public async Task InstallApkFromUrl(string url, string? saveFileName = null)
         {
             DialogBuilder dialog = new()
@@ -161,35 +106,6 @@ namespace QuestPatcher
             {
                 _locker.FinishOperation();
             }
-        }
-        
-        public async Task<bool> UninstallAndInstall()
-        {
-            DialogBuilder builder1 = new()
-            {
-                Title = "更换游戏版本",
-                Text = "换版本会删除所有的Mod，但不会影响您的歌曲、模型资源。降级完成后您可以把对应版本的Mod重新装回去，即可继续使用这些资源。\n\n点击继续并选择目标版本的游戏APK即可完成更换版本",
-            };
-            builder1.OkButton.Text = "继续";
-            
-            if (!await builder1.OpenDialogue(_mainWindow)) return false;
-            
-            try
-            {
-                return await AskToInstallApk(deleteMods:true, lockUi:true);
-            }
-            catch (Exception e)
-            {
-                var builder2 = new DialogBuilder {
-                    Title = "出错了！",
-                    Text = "在更换版本的过程中出现了一个意料之外的错误。",
-                    HideCancelButton = true
-                };
-                builder2.WithException(e);
-                await builder2.OpenDialogue(_mainWindow);
-            }
-
-            return false;
         }
 
         /// <summary>
