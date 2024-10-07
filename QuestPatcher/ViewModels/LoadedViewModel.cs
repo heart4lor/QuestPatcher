@@ -6,45 +6,16 @@ using Avalonia.Input;
 using QuestPatcher.Core;
 using QuestPatcher.Core.Models;
 using QuestPatcher.Resources;
-using QuestPatcher.Utils;
 using QuestPatcher.ViewModels.Modding;
 using ReactiveUI;
 using Serilog;
 
-#pragma warning disable CA1822
 namespace QuestPatcher.ViewModels
 {
     public class LoadedViewModel : ViewModelBase
     {
-        public string SelectedAppText => $"Modified by MicroBlock";
+        public string SelectedAppText => "Modified by MicroBlock & SkyQe";
 
-        public void ShowTutorial()
-        {
-            Util.OpenWebpage("https://bs.wgzeyu.com/oq-guide-qp/");
-        }
-        public void OpenSourceAddr()
-        {
-            Util.OpenWebpage("https://github.com/MicroCBer/QuestPatcher");
-        }
-        public void OpenSourceFKAddr()
-        {
-            Util.OpenWebpage("https://github.com/Lauriethefish/QuestPatcher");
-        }
-        public void WGZEYUAddr()
-        {
-            Util.OpenWebpage("https://space.bilibili.com/557131");
-        }
-        
-        public void MBAddr()
-        {
-            Util.OpenWebpage("https://space.bilibili.com/413164365");
-        }
-
-        public void SkyQeAddr()
-        {
-            Util.OpenWebpage("https://space.bilibili.com/3744764");
-        }
-        
         public PatchingViewModel PatchingView { get; }
 
         public ManageModsViewModel ManageModsView { get; }
@@ -54,6 +25,8 @@ namespace QuestPatcher.ViewModels
         public ToolsViewModel ToolsView { get; }
 
         public OtherItemsViewModel OtherItemsView { get; }
+        
+        public AboutViewModel AboutView { get; }
 
         private string AppName
         {
@@ -84,13 +57,14 @@ namespace QuestPatcher.ViewModels
         private readonly InstallManager _installManager;
         private readonly BrowseImportManager _browseManager;
 
-        public LoadedViewModel(PatchingViewModel patchingView, ManageModsViewModel manageModsView, LoggingViewModel loggingView, ToolsViewModel toolsView, OtherItemsViewModel otherItemsView, Config config, InstallManager installManager, BrowseImportManager browseManager)
+        public LoadedViewModel(PatchingViewModel patchingView, ManageModsViewModel manageModsView, LoggingViewModel loggingView, ToolsViewModel toolsView, OtherItemsViewModel otherItemsView, AboutViewModel aboutView, Config config, InstallManager installManager, BrowseImportManager browseManager)
         {
             PatchingView = patchingView;
             LoggingView = loggingView;
             ToolsView = toolsView;
             ManageModsView = manageModsView;
             OtherItemsView = otherItemsView;
+            AboutView = aboutView;
 
             Config = config;
             _installManager = installManager;

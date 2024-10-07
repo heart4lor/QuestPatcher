@@ -34,6 +34,7 @@ namespace QuestPatcher.Services
         private BrowseImportManager? _browseManager;
         private OtherItemsViewModel? _otherItemsView;
         private PatchingViewModel? _patchingView;
+        private AboutViewModel? _aboutView;
 
         private readonly ThemeManager _themeManager;
         private bool _isShuttingDown;
@@ -80,6 +81,7 @@ namespace QuestPatcher.Services
             ProgressViewModel progressViewModel = new(_operationLocker, FilesDownloader);
             _otherItemsView = new OtherItemsViewModel(OtherFilesManager, window, _browseManager, _operationLocker, progressViewModel);
             _patchingView = new PatchingViewModel(Config, _operationLocker, PatchingManager, InstallManager, window, progressViewModel, FilesDownloader);
+            _aboutView = new AboutViewModel(progressViewModel);
 
             MainWindowViewModel mainWindowViewModel = new(
                 new LoadedViewModel(
@@ -89,6 +91,7 @@ namespace QuestPatcher.Services
                     new ToolsViewModel(Config, progressViewModel, _operationLocker, window, SpecialFolders, InstallManager, DebugBridge, this, InfoDumper,
                         _themeManager, _browseManager, ModManager, ExitApplication),
                     _otherItemsView,
+                    _aboutView,
                     Config,
                     InstallManager,
                     _browseManager
