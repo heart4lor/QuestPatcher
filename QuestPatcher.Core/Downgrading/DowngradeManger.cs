@@ -139,6 +139,7 @@ namespace QuestPatcher.Core.Downgrading
         /// Downgrade the installed app to the specified version.
         /// </summary>
         /// <param name="toVersion">The version to downgrade to.</param>
+        /// <exception cref="FileDownloadFailedException">When necessary files needed for downgrade failed to download</exception>
         /// <exception cref="DowngradeException">When downgrade failed</exception>
         public async Task DowngradeApp(string toVersion)
         {

@@ -127,6 +127,17 @@ namespace QuestPatcher.ViewModels
                     HideCancelButton = true
                 };
             }
+            catch (FileDownloadFailedException e)
+            {
+                Log.Error("Downgrade failed due to files could not be downloaded: {Message}", e.Message);
+
+                dialog = new DialogBuilder
+                {
+                    Title = "无法下载文件",
+                    Text = "QuestPatcher 无法下载降级所需的文件。请检查您的互联网连接，然后重试。",
+                    HideCancelButton = true
+                };
+            }
             catch (Exception e)
             {
                 Log.Error(e, "Downgrade failed with exception: {Exception}", e.Message);
