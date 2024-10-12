@@ -1,11 +1,14 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using QuestPatcher.Core;
+using QuestPatcher.Core.Modding;
 using QuestPatcher.Core.Models;
 using QuestPatcher.ModBrowser;
 using QuestPatcher.ModBrowser.Models;
@@ -28,9 +31,12 @@ namespace QuestPatcher.ViewModels.ModBrowser
         private readonly Window _window;
         private readonly Config _config;
         private readonly InstallManager _installManager;
+        private readonly ModManager _modManager;
         private readonly ExternalModManager _externalModManager;
 
-        public ObservableCollection<ExternalModViewModel> Mods { get; } = new ObservableCollection<ExternalModViewModel>();
+        // Is concurrent dict necessary here?
+        private readonly IDictionary<string, ExternalModViewModel> _modDictionary = new ConcurrentDictionary<string, ExternalModViewModel>();
+        public IReadOnlyList<ExternalModViewModel> Mods => _modDictionary.Values.OrderBy(mod => mod.Name).ToList();
 
         public OperationLocker Locker { get; }
         public ProgressViewModel ProgressView { get; }
@@ -89,7 +95,7 @@ namespace QuestPatcher.ViewModels.ModBrowser
         
         public bool IsAllModsSelected
         {
-            get => _selectedMods.Count == Mods.Count;
+            get => _selectedMods.Count == _modDictionary.Count;
             set
             {
                 foreach (var mod in Mods)
@@ -99,13 +105,14 @@ namespace QuestPatcher.ViewModels.ModBrowser
             }
         }
 
-        public BrowseModViewModel(Window window, Config config, OperationLocker locker, ProgressViewModel progressView, InstallManager installManager, ExternalModManager externalModManager)
+        public BrowseModViewModel(Window window, Config config, OperationLocker locker, ProgressViewModel progressView, InstallManager installManager, ModManager modManager, ExternalModManager externalModManager)
         {
             _window = window;
             _config = config;
             Locker = locker;
             ProgressView = progressView;
             _installManager = installManager;
+            _modManager = modManager;
             _externalModManager = externalModManager;
 
             _installManager.PropertyChanged += (_, args) =>
@@ -129,8 +136,9 @@ namespace QuestPatcher.ViewModels.ModBrowser
             if (string.IsNullOrWhiteSpace(version)) return;
             if (State == ModListState.Loading) return;
             State = ModListState.Loading;
-            await Task.Delay(300); // Delay to prevent flickering
-            Mods.Clear();
+            UnsubscribeFromModInstallEvents();
+            await Task.Delay(100); // Delay to prevent flickering, also make sure no event handler is running (hopefully)
+            _modDictionary.Clear();
             try
             {
                 var mods = await _externalModManager.GetAvailableMods(version);
@@ -147,8 +155,10 @@ namespace QuestPatcher.ViewModels.ModBrowser
                 {
                     foreach (var mod in mods)
                     {
-                        Mods.Add(new ExternalModViewModel(mod, Locker, this));
+                        _modDictionary[mod.Id] = new ExternalModViewModel(mod, Locker, this);
                     }
+
+                    SubscribeToModInstallEventsAndLoadInstallStatus();
                     SetListState(ModListState.ModsLoaded, "");
                 }
             }
@@ -157,6 +167,10 @@ namespace QuestPatcher.ViewModels.ModBrowser
                 // unexpected error
                 Log.Error("Unexpected error when loading mods: {Message}", e.Message);
                 SetListState(ModListState.LoadError, "加载Mod列表时发生了意外错误", e);
+            }
+            finally
+            {
+                this.RaisePropertyChanged(nameof(Mods));
             }
 
             Debug.Assert(State != ModListState.Loading);
@@ -170,6 +184,70 @@ namespace QuestPatcher.ViewModels.ModBrowser
             LoadError = exception;
             this.RaisePropertyChanged(nameof(EmptyMessage));
             this.RaisePropertyChanged(nameof(LoadError));
+        }
+        
+        private void SubscribeToModInstallEventsAndLoadInstallStatus()
+        {
+            _modManager.Mods.CollectionChanged -= OnModListChanged;
+            _modManager.Mods.CollectionChanged += OnModListChanged;
+            _modManager.Libraries.CollectionChanged -= OnModListChanged;
+            _modManager.Libraries.CollectionChanged += OnModListChanged;
+            
+            // clone the collection to avoid threading issues
+            // ModManager will be loading current mods in another thread
+            AddInstallStatus(_modManager.Mods.ToArray());
+            AddInstallStatus(_modManager.Libraries.ToArray());
+        }
+        
+        private void UnsubscribeFromModInstallEvents()
+        {
+            _modManager.Mods.CollectionChanged -= OnModListChanged;
+            _modManager.Libraries.CollectionChanged -= OnModListChanged;
+        }
+        
+        private void OnModListChanged(object? sender, NotifyCollectionChangedEventArgs args)
+        {
+            if (args.Action == NotifyCollectionChangedAction.Reset)
+            {
+                RemoveInstallStatus(_modDictionary.Keys);
+                return;
+            }
+            
+            if (args.Action is NotifyCollectionChangedAction.Add or NotifyCollectionChangedAction.Replace)
+            {
+                AddInstallStatus(args.NewItems?.Cast<IMod>().ToArray());
+            }
+            
+            if (args.Action is NotifyCollectionChangedAction.Remove or NotifyCollectionChangedAction.Replace)
+            {
+                if (args.OldItems != null)
+                {
+                    RemoveInstallStatus(args.OldItems.Cast<IMod>().Select(mod => mod.Id).ToArray());
+                }
+            }
+        }
+        
+        private void AddInstallStatus(ICollection<IMod>? mods)
+        {
+            if (mods == null) return;
+            foreach (var mod in mods)
+            {
+                if (_modDictionary.TryGetValue(mod.Id, out var modVm))
+                {
+                    modVm.UpdateInstallStatus(mod);
+                }
+            }
+        }
+
+        private void RemoveInstallStatus(ICollection<string> mods)
+        {
+            foreach (string modId in mods)
+            {
+                if (_modDictionary.TryGetValue(modId, out var modVm))
+                {
+                    modVm.UpdateInstallStatus(null);
+                }
+            }
         }
         
         // Should only be called by ExternalModViewModel to sync the select state
@@ -201,7 +279,7 @@ namespace QuestPatcher.ViewModels.ModBrowser
         public async Task OnBatchInstallClicked()
         {
             if (_selectedMods.Count == 0) return;
-            var selectedMods = Mods.Where(mod => mod is {IsChecked:true}).Select(mod => mod.Mod).ToList();
+            var selectedMods = Mods.Where(mod => mod is {IsChecked:true, IsLatestInstalled:false}).Select(mod => mod.Mod).ToList();
             if (await InstallSelectedMods(selectedMods))
             {
                 ShowBatchInstall = false; //hide the batch install things after we successfully finished the batch install
@@ -227,7 +305,10 @@ namespace QuestPatcher.ViewModels.ModBrowser
                     foreach (var mod in mods)
                     {
                         // Install mod
-                        if (!await InstallMod(mod, false)) return false;
+                        if (_modDictionary.TryGetValue(mod.Id, out var modVm) && !modVm.IsLatestInstalled)
+                        {
+                            if (!await InstallMod(mod, false)) return false;
+                        }
                     }
                     return true;
                 }
