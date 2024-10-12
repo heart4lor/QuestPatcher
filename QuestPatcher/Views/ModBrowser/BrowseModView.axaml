@@ -13,10 +13,10 @@
     <DockPanel>
       <Panel DockPanel.Dock="Top">
         <TextBlock FontSize="18" Text="更多Mod" VerticalAlignment="Center" />
-        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10"
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8"
                     IsVisible="{Binding IsModListLoaded}"
                     IsEnabled="{Binding Locker.IsFree}">
-          <Button VerticalAlignment="Center" Command="{Binding OnInstallClicked}" Content="安装/更新" />
+          <ToggleButton VerticalAlignment="Center" IsChecked="{Binding ShowBatchInstall}" Content="批量操作" />
         </StackPanel>
       </Panel>
       <Panel>
@@ -37,16 +37,27 @@
                     HorizontalAlignment="Center"
                     Command="{Binding LoadMods}" Content="重试" />
           </StackPanel>
-          <ScrollViewer Margin="0 10 0 0" IsVisible="{Binding IsModListLoaded}"
-                        HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-            <ItemsControl ItemsSource="{Binding Mods}" Background="{DynamicResource ModListBackground}">
-              <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                  <UserControl Content="{Binding}" Name="externalMod" />
-                </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
-          </ScrollViewer>
+          <DockPanel Margin="0 8 0 0" IsVisible="{Binding IsModListLoaded}" Background="{DynamicResource ModListBackground}">
+            <DockPanel DockPanel.Dock="Top" Margin="8 4 8 0" IsEnabled="{Binding Locker.IsFree}" IsVisible="{Binding ShowBatchInstall}" HorizontalAlignment="Stretch">
+              <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
+                <CheckBox Content="全选 (不推荐)" IsChecked="{Binding IsAllModsSelected}"/>
+              </StackPanel>
+              <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <Button HorizontalAlignment="Right" IsEnabled="{Binding IsAnyModSelected}"
+                        Command="{Binding OnBatchInstallClicked}" Content="安装/更新" />
+              </StackPanel>
+              <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" Text="{Binding SelectedModsCountText}"/>
+            </DockPanel>
+            <ScrollViewer Margin="0 4 0 0" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+              <ItemsControl ItemsSource="{Binding Mods}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <UserControl Content="{Binding}" Name="externalMod" />
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </ScrollViewer>
+          </DockPanel>
         </Panel>
       </Panel>
     </DockPanel>

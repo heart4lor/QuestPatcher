@@ -34,6 +34,7 @@ namespace QuestPatcher.Services
         private LoggingViewModel? _loggingViewModel;
         private OperationLocker? _operationLocker;
         private BrowseImportManager? _browseManager;
+        private ExternalModManager _externalModManager;
         private OtherItemsViewModel? _otherItemsView;
         private PatchingViewModel? _patchingView;
         private AboutViewModel? _aboutView;
@@ -41,14 +42,11 @@ namespace QuestPatcher.Services
 
         private readonly ThemeManager _themeManager;
         private bool _isShuttingDown;
-        
-        private readonly ExternalModManager _externalModManager;
 
         public QuestPatcherUiService(IClassicDesktopStyleApplicationLifetime appLifetime) : base(new UIPrompter())
         {
             _appLifetime = appLifetime;
             _themeManager = new ThemeManager(Config, SpecialFolders);
-            _externalModManager = new ExternalModManager(ModManager, InstallManager, FilesDownloader, SpecialFolders, _browseManager!);
 
             // Deal with language configuration before we load the UI
             try
@@ -84,6 +82,7 @@ namespace QuestPatcher.Services
             _operationLocker = new();
             _operationLocker.StartOperation(); // Still loading
             _browseManager = new(OtherFilesManager, ModManager, window, InstallManager, _operationLocker, this, FilesDownloader, SpecialFolders);
+            _externalModManager = new ExternalModManager(FilesDownloader, _browseManager!);
             ProgressViewModel progressViewModel = new(_operationLocker, FilesDownloader);
             _otherItemsView = new OtherItemsViewModel(OtherFilesManager, window, _browseManager, _operationLocker, progressViewModel);
             _patchingView = new PatchingViewModel(Config, _operationLocker, PatchingManager, InstallManager, window, progressViewModel, FilesDownloader);

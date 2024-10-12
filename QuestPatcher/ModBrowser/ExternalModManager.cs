@@ -16,21 +16,15 @@ namespace QuestPatcher.ModBrowser
     {
         private const string VersionModUrlBase = "https://mods.bsquest.xyz/";
         
-        private readonly ModManager _modManager;
-        private readonly InstallManager _installManager;
         private readonly ExternalFilesDownloader _filesDownloader;
-        private readonly SpecialFolders _specialFolders;
         private readonly BrowseImportManager _browseImportManager;
         
         private readonly HttpClient _httpClient = new HttpClient();
         private readonly Dictionary<string, List<ExternalMod>> _modCache = new Dictionary<string, List<ExternalMod>>();
         
-        public ExternalModManager(ModManager modManager, InstallManager installManager, ExternalFilesDownloader filesDownloader, SpecialFolders specialFolders, BrowseImportManager browseImportManager)
+        public ExternalModManager(ExternalFilesDownloader filesDownloader, BrowseImportManager browseImportManager)
         {
-            _modManager = modManager;
-            _installManager = installManager;
             _filesDownloader = filesDownloader;
-            _specialFolders = specialFolders;
             _browseImportManager = browseImportManager;
         }
 
@@ -93,9 +87,21 @@ namespace QuestPatcher.ModBrowser
             return mods;
         }
         
-        public async Task InstallMod(ExternalMod mod)
+        /// <summary>
+        /// Install the specified mod
+        /// </summary>
+        /// <param name="mod">The mod to install</param>
+        /// <exception cref="FileDownloadFailedException">Failed to download the mod file</exception>
+        /// <returns>Whether install was successful</returns>
+        public async Task<bool> InstallMod(ExternalMod mod)
         {
-            await Task.Delay(300);  // do some fake work
+            Log.Debug("Installing mod {Mod}", mod.ToString());
+            using var tempFile = new TempFile();
+            var headers = await _filesDownloader.DownloadUri(mod.DownloadUrl, tempFile.Path, mod.Name);
+            // assume the file is qmod since there isn't any other supported mod file type
+            var importInfo = new FileImportInfo(tempFile.Path) { IsTemporaryFile = true, OverrideExtension = ".qmod"}; 
+            // TODO: Avoid calling BrowseImportManager directly
+            return await _browseImportManager.TryImportMod(importInfo, false, false);
         }
     }
 }

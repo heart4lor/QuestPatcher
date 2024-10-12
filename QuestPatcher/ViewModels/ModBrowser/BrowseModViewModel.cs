@@ -1,7 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.Threading;
+using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using QuestPatcher.Core;
@@ -41,6 +42,12 @@ namespace QuestPatcher.ViewModels.ModBrowser
         public bool IsModListEmpty => State == ModListState.Empty;
         public bool IsModListLoaded => State == ModListState.ModsLoaded;
         public bool IsModLoadError => State == ModListState.LoadError;
+        
+        private HashSet<string> _selectedMods = new HashSet<string>();
+        
+        public bool IsAnyModSelected => _selectedMods.Count > 0;
+        
+        private string? _currentGameVersion = null;
 
         public ModListState State
         {
@@ -58,6 +65,39 @@ namespace QuestPatcher.ViewModels.ModBrowser
         public string EmptyMessage { get; private set; } = "";
         
         public Exception? LoadError { get; private set; } = null;
+        
+        private bool _showBatchInstall = false;
+        public bool ShowBatchInstall
+        {
+            get => _showBatchInstall;
+            set
+            {
+                _showBatchInstall = value;
+                this.RaisePropertyChanged();
+                if (!value)
+                {
+                    // uncheck all the mods when disable batch selection
+                    foreach (var mod in Mods)
+                    {
+                        mod.IsChecked = false;
+                    }
+                }
+            }
+        }
+        
+        public string SelectedModsCountText => $"已选择 {_selectedMods.Count} 个Mod";
+        
+        public bool IsAllModsSelected
+        {
+            get => _selectedMods.Count == Mods.Count;
+            set
+            {
+                foreach (var mod in Mods)
+                {
+                    mod.IsChecked = value;
+                }
+            }
+        }
 
         public BrowseModViewModel(Window window, Config config, OperationLocker locker, ProgressViewModel progressView, InstallManager installManager, ExternalModManager externalModManager)
         {
@@ -72,15 +112,21 @@ namespace QuestPatcher.ViewModels.ModBrowser
             {
                 if (args.PropertyName == nameof(InstallManager.InstalledApp))
                 {
-                    Task.Run(LoadMods);
+                    string? newVersion = _installManager.InstalledApp?.Version;
+                    // no need to load again if the version is the same, it may because the app has just been patched
+                    if (newVersion != _currentGameVersion)  
+                    {
+                        _currentGameVersion = newVersion;
+                        Task.Run(LoadMods);
+                    }
                 }
             };
         }
 
         public async Task LoadMods()
         {
-            string? version = _installManager.InstalledApp?.Version;
-            if (version == null) return;
+            string? version = _currentGameVersion;
+            if (string.IsNullOrWhiteSpace(version)) return;
             if (State == ModListState.Loading) return;
             State = ModListState.Loading;
             await Task.Delay(300); // Delay to prevent flickering
@@ -101,7 +147,7 @@ namespace QuestPatcher.ViewModels.ModBrowser
                 {
                     foreach (var mod in mods)
                     {
-                        Mods.Add(new ExternalModViewModel(mod, Locker));
+                        Mods.Add(new ExternalModViewModel(mod, Locker, this));
                     }
                     SetListState(ModListState.ModsLoaded, "");
                 }
@@ -125,32 +171,116 @@ namespace QuestPatcher.ViewModels.ModBrowser
             this.RaisePropertyChanged(nameof(EmptyMessage));
             this.RaisePropertyChanged(nameof(LoadError));
         }
+        
+        // Should only be called by ExternalModViewModel to sync the select state
+        internal void SetModSelection(string id, bool selected)
+        {
+            bool wasAllModsSelected = IsAllModsSelected;
+            if (selected)
+            {
+                _selectedMods.Add(id);
+                if (IsAllModsSelected)
+                {
+                    this.RaisePropertyChanged(nameof(IsAllModsSelected));
+                }
+            }
+            else
+            {
+                _selectedMods.Remove(id);
+                if (wasAllModsSelected)
+                {
+                    // it is definitely not all selected now
+                    this.RaisePropertyChanged(nameof(IsAllModsSelected));
+                }
+            }
+            
+            this.RaisePropertyChanged(nameof(IsAnyModSelected));
+            this.RaisePropertyChanged(nameof(SelectedModsCountText));
+        }
 
-        public async Task OnInstallClicked()
+        public async Task OnBatchInstallClicked()
+        {
+            if (_selectedMods.Count == 0) return;
+            var selectedMods = Mods.Where(mod => mod is {IsChecked:true}).Select(mod => mod.Mod).ToList();
+            if (await InstallSelectedMods(selectedMods))
+            {
+                ShowBatchInstall = false; //hide the batch install things after we successfully finished the batch install
+            }
+        }
+
+        /// <summary>
+        /// Install mods
+        /// </summary>
+        /// <param name="mods">Collection of mods to install</param>
+        /// <returns>Whether all mods are successfully installed</returns>
+        public async Task<bool> InstallSelectedMods(ICollection<ExternalMod> mods)
         {
             try
             {
                 Locker.StartOperation();
-                foreach (var modVm in Mods)
+                if (mods.Count == 1)
                 {
-                    if (modVm.IsChecked)
+                    return await InstallMod(mods.First(), true);
+                }
+                else
+                {
+                    foreach (var mod in mods)
                     {
                         // Install mod
-                        var mod = modVm.Mod;
-                        Log.Debug("Installing {Mod}", mod);
-                        await _externalModManager.InstallMod(mod);
-                        modVm.ClearSelection();
+                        if (!await InstallMod(mod, false)) return false;
                     }
+                    return true;
                 }
             }
             catch (Exception e)
             {
-                Console.WriteLine(e);
-                throw;
+                Log.Error(e, "Failed to install selected mods: {Message}", e.Message);
+                var dialog = new DialogBuilder { Title = "出错了！", Text = "安装Mod时发生了意料之外错误", HideCancelButton = true };
+                dialog.WithException(e);
+                await dialog.OpenDialogue(_window);
+                return false;
             }
             finally
             {
                 Locker.FinishOperation();
+            }
+        }
+        
+        private async Task<bool> InstallMod(ExternalMod mod, bool isSingle)
+        {
+            Log.Debug("Installing {Mod}", mod.Name);
+            try
+            {
+                if (await _externalModManager.InstallMod(mod))
+                {
+                    return true;
+                }
+                
+                Log.Warning("Failed to install mod {Mod}", mod.Name);
+                DialogBuilder dialog;
+                if (isSingle)
+                {
+                    dialog = new DialogBuilder { Title = "安装失败", Text = $"无法安装Mod {mod.Name}，检查日志以获取更多信息。" };
+                }
+                else
+                {
+                    dialog = new DialogBuilder { Title = "安装失败", Text = $"无法安装Mod {mod.Name}，检查日志以获取更多信息。\n要继续安装其他Mod吗？" };
+                    dialog.OkButton.Text = "继续";
+                }
+
+                return await dialog.OpenDialogue(_window);
+            }
+            catch (FileDownloadFailedException e)
+            {
+                Log.Error(e, "Failed to download files when installing mod {Mod}: {Message}", mod.Name, e.Message);
+                var dialog = new DialogBuilder
+                {
+                    Title = "无法下载文件",
+                    Text = $"QuestPatcher 无法下载安装 {mod.Name} 所需的文件。请检查您的互联网连接，然后重试。",
+                    HideCancelButton = true
+                };
+                await dialog.OpenDialogue(_window);
+                return false;
             }
         }
     }
