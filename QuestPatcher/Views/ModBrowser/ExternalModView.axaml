@@ -12,9 +12,12 @@
     <Style Selector="Panel#ModContainer:pointerover">
       <Setter Property="Background" Value="{DynamicResource ModHover}" />
     </Style>
+    <Style Selector="Panel#ModContainer">
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
   </UserControl.Styles>
 
-  <Panel Name="ModContainer">
+  <Panel Name="ModContainer" PointerPressed="OnPointerPressed">
     <DockPanel Margin="8 4 8 4">
       <!-- TODO: Add image here -->
       <!-- <Panel Width="177.778" DockPanel.Dock="Left"> -->

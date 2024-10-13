@@ -122,5 +122,13 @@ namespace QuestPatcher.ViewModels.ModBrowser
         {
             await Parent.InstallSelectedMods(new List<ExternalMod> { Mod });
         }
+        
+        public void ViewClicked()
+        {
+            if (ShouldEnableButton && Parent.ShowBatchInstall)
+            {
+                IsChecked = !IsChecked;
+            }
+        }
     }
 }
