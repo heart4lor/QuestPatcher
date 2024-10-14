@@ -91,7 +91,7 @@ namespace QuestPatcher.ViewModels.ModBrowser
             }
         }
         
-        public string SelectedModsCountText => $"已选择 {_selectedMods.Count} 个Mod";
+        public string SelectedModsCountText => _selectedMods.Count == 0 ? "" : $"已选择 {_selectedMods.Count} 个Mod";
         
         public bool IsAllModsSelected
         {

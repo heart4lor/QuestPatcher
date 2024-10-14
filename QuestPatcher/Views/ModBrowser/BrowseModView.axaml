@@ -8,15 +8,23 @@
   <Design.DataContext>
     <modBrowserVMs:BrowseModViewModel />
   </Design.DataContext>
+  <UserControl.Styles>
+    <Style Selector="Button#BatchInstallButton">
+      <Setter Property="Background" Value="{DynamicResource SystemControlHighlightAccentBrush}" />
+    </Style>
+  </UserControl.Styles>
   <DockPanel Margin="20 0 20 20">
     <UserControl DockPanel.Dock="Top" Margin="0 0 0 20" Content="{Binding ProgressView}" />
     <DockPanel>
       <Panel DockPanel.Dock="Top">
         <TextBlock FontSize="18" Text="更多Mod" VerticalAlignment="Center" />
-        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8"
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8"
                     IsVisible="{Binding IsModListLoaded}"
                     IsEnabled="{Binding Locker.IsFree}">
-          <ToggleButton VerticalAlignment="Center" IsChecked="{Binding ShowBatchInstall}" Content="批量操作" />
+          <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Bottom">
+            <TextBlock VerticalAlignment="Center" Text="批量操作"/>
+            <ToggleSwitch VerticalAlignment="Center" IsChecked="{Binding ShowBatchInstall}" OnContent="" OffContent="" />
+          </StackPanel>
         </StackPanel>
       </Panel>
       <Panel>
@@ -43,7 +51,7 @@
                 <CheckBox Content="全选 (不推荐)" IsChecked="{Binding IsAllModsSelected}"/>
               </StackPanel>
               <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                <Button HorizontalAlignment="Right" IsEnabled="{Binding IsAnyModSelected}"
+                <Button HorizontalAlignment="Right" Name="BatchInstallButton" IsEnabled="{Binding IsAnyModSelected}"
                         Command="{Binding OnBatchInstallClicked}" Content="安装/更新" />
               </StackPanel>
               <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" Text="{Binding SelectedModsCountText}"/>
