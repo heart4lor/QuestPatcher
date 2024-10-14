@@ -13,6 +13,9 @@
     <Style Selector="DockPanel#MainModPanel:pointerover">
       <Setter Property="Background" Value="{DynamicResource ModHover}"/>
     </Style>
+    <Style Selector="DockPanel#MainModPanel">
+      <Setter Property="Background" Value="Transparent"/>
+    </Style>
   </UserControl.Styles>
   
   <DockPanel Height="100" Margin="0 0 0 10" Name="MainModPanel">
