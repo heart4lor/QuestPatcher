@@ -9,10 +9,12 @@ using QuestPatcher.Core;
 using QuestPatcher.Core.Models;
 using QuestPatcher.Core.Patching;
 using QuestPatcher.Core.Utils;
+using QuestPatcher.ModBrowser;
 using QuestPatcher.Models;
 using QuestPatcher.Resources;
 using QuestPatcher.Utils;
 using QuestPatcher.ViewModels;
+using QuestPatcher.ViewModels.ModBrowser;
 using QuestPatcher.ViewModels.Modding;
 using QuestPatcher.Views;
 using Serilog;
@@ -32,9 +34,11 @@ namespace QuestPatcher.Services
         private LoggingViewModel? _loggingViewModel;
         private OperationLocker? _operationLocker;
         private BrowseImportManager? _browseManager;
+        private ExternalModManager _externalModManager;
         private OtherItemsViewModel? _otherItemsView;
         private PatchingViewModel? _patchingView;
         private AboutViewModel? _aboutView;
+        private BrowseModViewModel? _browseModView;
 
         private readonly ThemeManager _themeManager;
         private bool _isShuttingDown;
@@ -78,10 +82,12 @@ namespace QuestPatcher.Services
             _operationLocker = new();
             _operationLocker.StartOperation(); // Still loading
             _browseManager = new(OtherFilesManager, ModManager, window, InstallManager, _operationLocker, this, FilesDownloader, SpecialFolders);
+            _externalModManager = new ExternalModManager(FilesDownloader, _browseManager!);
             ProgressViewModel progressViewModel = new(_operationLocker, FilesDownloader);
             _otherItemsView = new OtherItemsViewModel(OtherFilesManager, window, _browseManager, _operationLocker, progressViewModel);
             _patchingView = new PatchingViewModel(Config, _operationLocker, PatchingManager, InstallManager, window, progressViewModel, FilesDownloader);
             _aboutView = new AboutViewModel(progressViewModel);
+            _browseModView = new BrowseModViewModel(window, Config, _operationLocker, progressViewModel, InstallManager, ModManager, _externalModManager);
 
             MainWindowViewModel mainWindowViewModel = new(
                 new LoadedViewModel(
@@ -94,7 +100,8 @@ namespace QuestPatcher.Services
                     _aboutView,
                     Config,
                     InstallManager,
-                    _browseManager
+                    _browseManager,
+                    _browseModView
                 ),
                 new LoadingViewModel(progressViewModel, _loggingViewModel, Config),
                 this

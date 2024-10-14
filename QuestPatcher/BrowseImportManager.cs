@@ -650,7 +650,7 @@ namespace QuestPatcher
         /// <param name="checkCoreMods">Whether to check core mods before import the mod</param>
         /// <param name="checkPackageVersion">Whether to check the package version indicated in the mod manifest</param>
         /// <returns>Whether or not the file could be imported as a mod</returns>
-        private async Task<bool> TryImportMod(FileImportInfo importInfo, bool checkCoreMods = true, bool checkPackageVersion = true)
+        public async Task<bool> TryImportMod(FileImportInfo importInfo, bool checkCoreMods = true, bool checkPackageVersion = true)
         {
             if (checkCoreMods)
                 if (!await CheckCoreMods())
