@@ -46,7 +46,7 @@
                     Command="{Binding LoadMods}" Content="重试" />
           </StackPanel>
           <DockPanel Margin="0 8 0 0" IsVisible="{Binding IsModListLoaded}" Background="{DynamicResource ModListBackground}">
-            <DockPanel DockPanel.Dock="Top" Margin="8 4 8 0" IsEnabled="{Binding Locker.IsFree}" IsVisible="{Binding ShowBatchInstall}" HorizontalAlignment="Stretch">
+            <DockPanel DockPanel.Dock="Top" Margin="8 4 8 4" IsEnabled="{Binding Locker.IsFree}" IsVisible="{Binding ShowBatchInstall}" HorizontalAlignment="Stretch">
               <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
                 <CheckBox Content="全选 (不推荐)" IsChecked="{Binding IsAllModsSelected}"/>
               </StackPanel>
@@ -56,7 +56,7 @@
               </StackPanel>
               <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" Text="{Binding SelectedModsCountText}"/>
             </DockPanel>
-            <ScrollViewer Margin="0 4 0 0" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+            <ScrollViewer Margin="0 0 0 0" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
               <ItemsControl ItemsSource="{Binding Mods}">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate>
