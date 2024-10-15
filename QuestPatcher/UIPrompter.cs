@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Net.Http;
-using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using QuestPatcher.Core;
@@ -12,7 +10,6 @@ using QuestPatcher.Services;
 using QuestPatcher.ViewModels;
 using QuestPatcher.Views;
 using QuestPatcher.Utils;
-using SemVer = SemanticVersioning.Version;
 
 namespace QuestPatcher
 {
@@ -35,107 +32,80 @@ namespace QuestPatcher
             _specialFolders = specialFolders;
         }
         
-        public async Task<bool> CheckUpdate()
+        public async Task PromptUpdateAvailable(string latest)
         {
-#if DEBUG
-            return true;
-#endif
-            
-            try
+            DialogBuilder builder = new()
             {
-                JsonNode? res = null;
-                using HttpClient client = new();
-                client.DefaultRequestHeaders.Add("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/97.0.4692.71 Safari/537.36");
-                client.DefaultRequestHeaders.Add("accept", "application/json");
-                // try
-                // {
-                //     res = JsonNode.Parse(await client.GetStringAsync(@"https://beatmods.wgzeyu.com/githubapi/MicroCBer/QuestPatcher/latest"));
-                // }
-                // catch (Exception e)
-                // {
-                //     res = JsonNode.Parse(await client.GetStringAsync(@"https://api.github.com/repos/MicroCBer/QuestPatcher/releases/latest"));
-                // }
-                
-                res = JsonNode.Parse(await client.GetStringAsync(@"https://api.github.com/repos/MicroCBer/QuestPatcher/releases/latest"));
-                
-                string? newest = res?["tag_name"]?.ToString();
-                if (newest == null) throw new Exception("Failed to check update.");
-
-                bool isLatest = SemVer.TryParse(newest, out var latest) && latest == VersionUtil.QuestPatcherVersion;
-                
-                if (!isLatest)
+                Title = "有更新！",
+                Text = $"**不更新软件，可能会遇到未知问题，强烈建议更新至最新版**\n" +
+                       $"同时，非最新版本将不受支持且不保证没有安全问题\n\n" +
+                       $"您的版本 - v{VersionUtil.QuestPatcherVersion}\n" +
+                       $"最新版本 - v{latest}",
+                HideOkButton = true,
+                HideCancelButton = true
+            };
+            builder.WithButtons(
+                new ButtonInfo
                 {
-                    DialogBuilder builder = new()
-                    {
-                        Title = "有更新！",
-                        Text = $"**不更新软件，可能会遇到未知问题，强烈建议更新至最新版**\n" +
-                        $"同时，非最新版本将不受支持且不保证没有安全问题\n\n" +
-                        $"您的版本 - v{VersionUtil.QuestPatcherVersion}\n" +
-                        $"最新版本 - v{latest?.ToString() ?? newest}",
-                        HideOkButton = true,
-                        HideCancelButton = true
-                    };
-                    builder.WithButtons(
-                        new ButtonInfo
-                         {
-                             Text = "进入QP教程",
-                             CloseDialogue = true,
-                             ReturnValue = true,
-                             OnClick = () => Util.OpenWebpage("https://bs.wgzeyu.com/oq-guide-qp/#install_qp")
-                         }, 
-                        new ButtonInfo
-                        {
-                            Text = "进入网盘下载",
-                            CloseDialogue = true,
-                            ReturnValue = true,
-                            OnClick = () => Util.OpenWebpage("http://share.wgzeyu.vip/?Ly8lRTUlQjclQTUlRTUlODUlQjclRUYlQkMlODglRTUlQTYlODJNb2QlRTUlQUUlODklRTglQTMlODUlRTUlOTklQTglRTMlODAlODElRTglQjAlQjElRTklOUQlQTIlRTclQkMlOTYlRTglQkUlOTElRTUlOTklQTglRTclQUQlODlCUyVFNyU5QiVCOCVFNSU4NSVCMyVFOCVCRCVBRiVFNCVCQiVCNiVFRiVCQyU4OS8=")
-                        },
-                        new ButtonInfo
-                        {
-                            Text = "进入GitHub下载",
-                            CloseDialogue = true,
-                            ReturnValue = true,
-                            OnClick = () => Util.OpenWebpage("https://github.com/MicroCBer/QuestPatcher/releases/latest")
-                        });
+                    Text = "进入GitHub下载(推荐)",
+                    CloseDialogue = true,
+                    ReturnValue = true,
+                    OnClick = () => Util.OpenWebpage("https://github.com/MicroCBer/QuestPatcher/releases/latest")
+                },
+                new ButtonInfo
+                {
+                    Text = "进入网盘下载",
+                    CloseDialogue = true,
+                    ReturnValue = true,
+                    OnClick = () => Util.OpenWebpage("http://share.wgzeyu.vip/?Ly8lRTUlQjclQTUlRTUlODUlQjclRUYlQkMlODglRTUlQTYlODJNb2QlRTUlQUUlODklRTglQTMlODUlRTUlOTklQTglRTMlODAlODElRTglQjAlQjElRTklOUQlQTIlRTclQkMlOTYlRTglQkUlOTElRTUlOTklQTglRTclQUQlODlCUyVFNyU5QiVCOCVFNSU4NSVCMyVFOCVCRCVBRiVFNCVCQiVCNiVFRiVCQyU4OS8=")
+                },
+                new ButtonInfo
+                {
+                    Text = "进入QP教程",
+                    CloseDialogue = true,
+                    ReturnValue = true,
+                    OnClick = () => Util.OpenWebpage("https://bs.wgzeyu.com/oq-guide-qp/#install_qp")
+                });
 
-                    await builder.OpenDialogue(_mainWindow);
-                }
-                return true;
-            }
-            catch (Exception ex)
+            await builder.OpenDialogue(_mainWindow);
+        }
+
+        public async Task PromptUpdateCheckFailed(Exception? exception)
+        {
+            DialogBuilder builder = new()
             {
-                DialogBuilder builder = new()
+                Title = "检查更新失败",
+                Text = "请手动检查更新",
+                HideCancelButton = true
+            };
+            builder.WithButtons(
+                new ButtonInfo
                 {
-                    Title = "检查更新失败"+ex,
-                    Text = "请手动检查更新",
-                    HideOkButton = true
-                };
-                builder.WithButtons(
-                    new ButtonInfo
-                    {
-                        Text = "进入QP教程",
-                        CloseDialogue = true,
-                        ReturnValue = true,
-                        OnClick = () => Util.OpenWebpage("https://bs.wgzeyu.com/oq-guide-qp/#install_qp")
-                    }, 
-                    new ButtonInfo
-                    {
-                        Text = "进入网盘下载",
-                        CloseDialogue = true,
-                        ReturnValue = true,
-                        OnClick = () => Util.OpenWebpage("http://share.wgzeyu.vip/?Ly8lRTUlQjclQTUlRTUlODUlQjclRUYlQkMlODglRTUlQTYlODJNb2QlRTUlQUUlODklRTglQTMlODUlRTUlOTklQTglRTMlODAlODElRTglQjAlQjElRTklOUQlQTIlRTclQkMlOTYlRTglQkUlOTElRTUlOTklQTglRTclQUQlODlCUyVFNyU5QiVCOCVFNSU4NSVCMyVFOCVCRCVBRiVFNCVCQiVCNiVFRiVCQyU4OS8=")
-                    },
-                    new ButtonInfo
-                    {
-                        Text = "进入GitHub下载",
-                        CloseDialogue = true,
-                        ReturnValue = true,
-                        OnClick = () => Util.OpenWebpage("https://github.com/MicroCBer/QuestPatcher/releases/latest")
-                    });
-
-                await builder.OpenDialogue(_mainWindow);
-                return false; 
+                    Text = "进入GitHub下载(推荐)",
+                    CloseDialogue = true,
+                    ReturnValue = true,
+                    OnClick = () => Util.OpenWebpage("https://github.com/MicroCBer/QuestPatcher/releases/latest")
+                },
+                new ButtonInfo
+                {
+                    Text = "进入网盘下载",
+                    CloseDialogue = true,
+                    ReturnValue = true,
+                    OnClick = () => Util.OpenWebpage("http://share.wgzeyu.vip/?Ly8lRTUlQjclQTUlRTUlODUlQjclRUYlQkMlODglRTUlQTYlODJNb2QlRTUlQUUlODklRTglQTMlODUlRTUlOTklQTglRTMlODAlODElRTglQjAlQjElRTklOUQlQTIlRTclQkMlOTYlRTglQkUlOTElRTUlOTklQTglRTclQUQlODlCUyVFNyU5QiVCOCVFNSU4NSVCMyVFOCVCRCVBRiVFNCVCQiVCNiVFRiVCQyU4OS8=")
+                },
+                new ButtonInfo
+                {
+                    Text = "进入QP教程",
+                    CloseDialogue = true,
+                    ReturnValue = true,
+                    OnClick = () => Util.OpenWebpage("https://bs.wgzeyu.com/oq-guide-qp/#install_qp")
+                });
+            if (exception != null)
+            {
+                builder.WithException(exception);
             }
+
+            await builder.OpenDialogue(_mainWindow);
         }
         
         public Task<bool> PromptAppNotInstalled()

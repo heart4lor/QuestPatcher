@@ -42,6 +42,7 @@ namespace QuestPatcher.Services
 
         private readonly ThemeManager _themeManager;
         private bool _isShuttingDown;
+        private bool _updateChecked;
 
         public QuestPatcherUiService(IClassicDesktopStyleApplicationLifetime appLifetime) : base(new UIPrompter())
         {
@@ -117,6 +118,12 @@ namespace QuestPatcher.Services
             if (_operationLocker.IsFree) // Necessary since the operation may have started earlier if this is the first load. Otherwise, we need to start the operation on subsequent loads
             {
                 _operationLocker.StartOperation();
+            }
+
+            if (!_updateChecked)
+            {
+                _ = CheckForUpdates(); // Check for updates in the background
+                _updateChecked = true;
             }
 
             try
