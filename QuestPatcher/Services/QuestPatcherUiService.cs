@@ -164,7 +164,7 @@ namespace QuestPatcher.Services
                     Title = "非原版BeatSaber！",
                     Text = "检测到已安装的BeatSaber版本可能存在异常，\n" +
                            "你安装的游戏有可能是盗版，QuestPatcher不兼容盗版，请支持正版！",
-                    HideCancelButton = true
+                    HideCancelButton = false
                 };
 
                 var button1 = new ButtonInfo
@@ -192,7 +192,6 @@ namespace QuestPatcher.Services
 
                 builder1.WithButtons(button1, button2, button3);
                 await builder1.OpenDialogue(_mainWindow);
-                await InstallManager.UninstallApp();
             }
             catch (Exception ex)
             {
